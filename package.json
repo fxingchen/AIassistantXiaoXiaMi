@@ -1,0 +1,68 @@
+{
+  "name": "claude-chat",
+  "displayName": "小虾米 AI 助手",
+  "description": "小虾米 AI 聊天助手：在侧边栏与 AI 对话，支持自动附加当前文件/选中代码、粘贴截图、拖入代码文件、斜杠快捷指令。需要 SiliconFlow API Key。",
+  "version": "0.0.2",
+  "publisher": "xingkong",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeChat",
+          "title": "小虾米 AI",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudeChat": [
+        {
+          "type": "webview",
+          "id": "claudeChat.chatView",
+          "name": "对话"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claudeChat.sendSelection",
+        "title": "发送选中代码到小虾米",
+        "category": "小虾米"
+      },
+      {
+        "command": "claudeChat.sendFile",
+        "title": "发送当前文件到小虾米",
+        "category": "小虾米"
+      },
+      {
+        "command": "claudeChat.focus",
+        "title": "打开小虾米聊天",
+        "category": "小虾米"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "claudeChat.sendSelection",
+          "when": "editorHasSelection",
+          "group": "claudeChat"
+        },
+        {
+          "command": "claudeChat.sendFile",
+          "group": "claudeChat"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "claudeChat.sendSelection",
+        "key": "ctrl+shift+i",
+        "when": "editorHasSelection"
+      }
+    ]
+  }
+}
