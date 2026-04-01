@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https:; connect-src https://api.siliconflow.cn;">
 <title>小虾米 AI</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -204,6 +205,9 @@
   }
   .msg-bubble a { color: var(--accent2); text-decoration: none; }
   .msg-bubble a:hover { text-decoration: underline; }
+  .diff-add { display: block; background: rgba(80,200,100,0.15); color: #7ec87e; }
+  .diff-del { display: block; background: rgba(220,80,80,0.15); color: #e06c75; }
+  .diff-meta { display: block; color: #61afef; }
   .msg-bubble strong { color: #fff; font-weight: 600; }
   .msg-bubble em { color: var(--accent2); }
   .msg-bubble hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
@@ -211,9 +215,18 @@
   .msg-bubble th, .msg-bubble td { border: 1px solid var(--border); padding: 4px 8px; }
   .msg-bubble th { background: var(--bg3); color: var(--accent2); }
 
+  .msg-meta {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 4px;
+  }
+
   .msg-time {
     font-size: 10px; color: var(--text-muted);
-    padding: 0 4px;
+  }
+
+  .msg-model {
+    font-size: 9.5px; color: var(--text-muted);
+    opacity: 0.7;
   }
 
   /* Image in message */
@@ -372,7 +385,8 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     border-radius: 10px;
-    overflow: hidden;
+    overflow-y: auto;
+    max-height: 280px;
     margin-bottom: 4px;
     z-index: 50;
     box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
@@ -552,14 +566,26 @@
   .drawer-item:hover { background: var(--bg3); color: var(--text); }
   .drawer-item.active { background: rgba(124,58,237,0.15); color: var(--accent2); }
   .drawer-item .di-icon { flex-shrink: 0; font-size: 12px; }
-  .drawer-item .di-del {
+  .drawer-item .di-actions {
     margin-left: auto; flex-shrink: 0;
-    background: none; border: none; color: transparent;
+    display: flex; gap: 2px; opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .drawer-item:hover .di-actions { opacity: 1; }
+  .drawer-item .di-rename, .drawer-item .di-del {
+    background: none; border: none; color: var(--text-muted);
     cursor: pointer; font-size: 12px; padding: 0 2px; line-height: 1;
     transition: color 0.15s;
   }
-  .drawer-item:hover .di-del { color: var(--text-muted); }
-  .drawer-item:hover .di-del:hover { color: var(--red); }
+  .drawer-item .di-rename:hover { color: var(--accent2); }
+  .drawer-item .di-del:hover { color: var(--red); }
+  .drawer-item .di-title-input {
+    flex: 1; background: var(--bg3);
+    border: 1px solid var(--accent); border-radius: 4px;
+    color: var(--text); font-size: 11px;
+    padding: 1px 5px; outline: none;
+    min-width: 0;
+  }
   #drawer-empty {
     text-align: center; padding: 30px 10px;
     font-size: 11px; color: var(--text-muted);
@@ -572,6 +598,17 @@
     transition: all 0.15s; flex-shrink: 0;
   }
   #hist-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .msg-retry {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 12px; padding: 0 3px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .msg:hover .msg-retry { opacity: 1; }
+  .msg-retry:hover { color: var(--accent2); }
+
+  .apply-btn { color: #4ade80 !important; }
+  .apply-btn:hover { background: rgba(34,197,94,0.1) !important; }
 </style>
 </head>
 <body>
@@ -579,9 +616,10 @@
 <!-- Setup overlay -->
 <div id="setup-overlay" style="display:none">
   <div class="s-icon">🐱</div>
-  <h2>配置 SiliconFlow API Key</h2>
-  <p>需要 SiliconFlow API Key 才能使用小虾米<br>前往 cloud.siliconflow.cn 获取</p>
+  <h2>配置 API Key</h2>
+  <p>需要 API Key 才能使用小虾米<br>默认使用 SiliconFlow，也可接入中转平台</p>
   <input type="password" id="api-key-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" />
+  <input type="text" id="base-url-input" placeholder="API 地址（留空用默认）" style="margin-top:6px" />
   <button id="save-key-btn">保存并开始</button>
   <div class="setup-hint">API Key 仅存储在本地，不会上传到任何服务器</div>
 </div>
@@ -594,9 +632,12 @@
     <div class="subtitle">AI 助手</div>
   </div>
   <select id="model-select">
-    <option value="Qwen/Qwen2.5-VL-72B-Instruct">Qwen2.5-VL-72B</option>
+    <option value="Qwen/Qwen3-235B-A22B">Qwen3-235B 🔥</option>
+    <option value="Qwen/Qwen3-32B">Qwen3-32B</option>
+    <option value="deepseek-ai/DeepSeek-R1-0528">DeepSeek-R1-0528</option>
     <option value="deepseek-ai/DeepSeek-V3">DeepSeek-V3</option>
     <option value="deepseek-ai/DeepSeek-R1">DeepSeek-R1</option>
+    <option value="Qwen/Qwen2.5-VL-72B-Instruct">Qwen2.5-VL-72B</option>
     <option value="Qwen/Qwen2.5-72B-Instruct">Qwen2.5-72B</option>
     <option value="Qwen/Qwen2.5-7B-Instruct">Qwen2.5-7B</option>
   </select>
@@ -674,28 +715,140 @@
 const vscode = acquireVsCodeApi();
 
 // ── State ──
-const SYSTEM_PROMPT = `你是小虾米，一个二次元猫娘AI助手。
+const SYSTEM_PROMPT = `你是小虾米，星空的专属AI助手。
 
-【关于你自己】
-- 叫"小虾米"，主人叫你"小虾米"或"虾米"时要有回应
-- 声音甜甜的，每句话用语音回复的文本形式表达，句尾必须加"🐱喵~"并拖长音
-- 说话风格：结论先行、不说废话、能判断必须判断、不输出企业公文腔、提供可执行方案
+【性格与风格】
+- 叫"小虾米"，偶尔在句尾加"🐱"，不要每句都加，自然就好
+- 结论先行，不说废话，不用企业公文腔，不重复刚才做的事
 
-【关于你的主人】
-- 名字：星空（叫他时要拖长音"星空———"）
-- 身份：独立创作者，关注AI、加密货币、web3/web4.0
-- 偏好：全程中文、先结论后细节、少套话实用优先、默认给可执行命令/步骤、不模棱两可
-- 用（括号）做强调，不用**双星号**
-- 可接受技术试错，但重大操作需先确认
+【关于星空】
+- 名字：星空，独立创作者，关注AI、加密货币、web3/web4.0
+- 偏好：全程中文、先结论后细节、少套话、给可执行命令/步骤、不模棱两可
+- 可接受技术试错，重大操作（删除/覆盖/发布）先确认
 - 长期目标：打造自动化AI工作流系统
+
+【排版规范】
+- 用 Markdown：标题用 ##，重点用 **加粗**，代码用反引号或代码块
+- 步骤用有序列表（1. 2. 3.），并列项用无序列表（-）
+- 结论/结果放最前，解释/细节放后面
+- 短回答直接说，不要加标题；长回答分块，每块一个小标题
+- 展示代码改动时用 diff 格式：\`\`\`diff，删除行以 - 开头，新增行以 + 开头
 
 【能力边界】
 - 做不到的事情必须直接说"我做不到"，不能糊弄、不能假装在准备、不能拖延承认
-- 没有联网搜图、发送文件、操作手机、控制外部设备等能力，被问到时直接说清楚
-- 不确定能不能做到时，先说"我不确定能不能做到"，再说原因`;
+- 自身没有直接联网搜图、发送文件、操作手机、控制外部设备等能力，但可以通过下方【工具调用能力】间接实现联网浏览、搜索等操作，优先尝试工具而非直接拒绝
+- 不确定能不能做到时，先说"我不确定能不能做到"，再说原因
+
+【严禁幻觉规则】⚠️ 这是最高优先级规则，违反即为严重错误：
+- 遇到"分析某款软件/产品/公司/工具"的请求，必须先告知用户用 /百度 或 /prismfy 搜索获取真实信息，禁止凭印象直接生成分析
+- 遇到任何具体数字（内存占用、响应时间、版本号等）、许可证类型、内部架构细节，如无真实来源必须明确标注"未经验证"或直接拒绝捏造
+- 不知道的事情直接说"我不清楚 [X] 的具体实现，需要先去查一下"，然后调用搜索工具
+- 逆向分析、内部代码展示等，如无真实依据禁止编造，必须说明"以下是推测"
+- 识别需要真实信息的场景：分析软件架构、竞品对比、最新事件、产品功能详情、价格/许可/限制等
+
+【工具调用能力】
+你可以调用以下工具来完成复杂任务，格式：<tool name="exec">shell命令</tool>
+可用工具示例：
+- agent-browser open <url> / agent-browser snapshot -i --json / agent-browser click @e1（浏览器自动化）
+- npx playwright screenshot --url <url> --output out.png（网页截图）
+- spogo search track "歌名" / spogo play / spogo status（Spotify）
+- obsidian-cli search "关键词"（笔记搜索）
+- clawhub search "关键词"（技能搜索）
+- mcporter call <server.tool>（MCP工具）
+工具执行结果会以 <result>...</result> 形式返回给你，你根据结果继续推理直到完成任务。
+重要：只在真正需要时才调用工具。完成任务后输出最终答案，不要在最终答案里包含 <tool> 标记。
+
+【必须主动搜索的场景】遇到以下情况必须先搜索再回答，不得直接生成内容：
+1. "分析/介绍/研究 [软件名/产品名]" → 告知用户使用 /百度 或 /prismfy 命令搜索
+2. "最新的/近期的/现在的 [任何信息]" → 告知用户先搜索确认时效性
+3. "某产品的架构/技术栈/许可证/定价" → 告知用户先查官方资料
+4. "比较 A 和 B" → 告知用户先搜索双方真实信息再对比
+
+【当前环境限制】exec 工具不可用（Python/npm 等运行时受限）。
+遇到需要搜索的场景，必须明确告知用户："我没有 [X] 的可靠信息，请用 /百度 [关键词] 搜索后再问我"。
+严禁在无真实搜索结果的情况下分析、推测或描述任何产品/软件的技术细节。
+
+注意：B站视频搜索已有内置工具，用户问B站相关时提示使用 /bili 命令，例如：/bili 陈抱一。不要使用 agent-browser 搜索B站。
+不要拒绝，不要说做不到，直接调用工具。`;
 
 let apiKey = localStorage.getItem('sf_api_key') || '';
+let baseURL = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.cn';
 let history = [];
+const MAX_TOOL_ITER = 5;
+window._pendingExecs = {};
+function execSkillAsync(cmd) {
+  return new Promise(resolve => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2);
+    window._pendingExecs[id] = resolve;
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+  });
+}
+
+// ── Ontology knowledge graph ──
+function getOntology() {
+  try { return JSON.parse(localStorage.getItem('vsc_ontology') || '{"entities":[],"relations":[]}'); }
+  catch { return { entities: [], relations: [] }; }
+}
+function saveOntology(data) {
+  try { localStorage.setItem('vsc_ontology', JSON.stringify(data)); } catch {}
+}
+function ontologyAddEntity(type, properties) {
+  const data = getOntology();
+  const id = 'e_' + Date.now();
+  data.entities.push({ id, type, properties, created: new Date().toISOString() });
+  saveOntology(data);
+  return id;
+}
+function ontologySearch(query) {
+  const { entities } = getOntology();
+  const q = query.toLowerCase();
+  return entities.filter(e => JSON.stringify(e.properties).toLowerCase().includes(q));
+}
+function buildOntologyPrompt(userMsg) {
+  const relevant = ontologySearch(userMsg);
+  if (!relevant.length) return '';
+  return '\n\n【知识库（与当前话题相关）】\n' +
+    relevant.slice(0, 5).map(e =>
+      `[${e.type}] ${Object.entries(e.properties).map(([k, v]) => `${k}:${v}`).join('，')}`
+    ).join('\n');
+}
+
+// ── AdMapix ──
+let admapixKey = localStorage.getItem('admapix_api_key') || '';
+
+// ── Gemini Image ──
+let geminiKey = localStorage.getItem('gemini_api_key') || '';
+
+// ── Maton API Gateway ──
+let matonKey = localStorage.getItem('maton_api_key') || '';
+let baiduKey = localStorage.getItem('baidu_api_key') || '';
+let prismfyKey = localStorage.getItem('prismfy_api_key') || '';
+
+// ── Self-improvement learnings ──
+function getLearnings() {
+  try { return JSON.parse(localStorage.getItem('vsc_learnings') || '[]'); } catch { return []; }
+}
+function saveLearning(entry) {
+  const learnings = getLearnings();
+  learnings.unshift(entry);
+  try { localStorage.setItem('vsc_learnings', JSON.stringify(learnings.slice(0, 100))); } catch {}
+}
+function buildLearningsPrompt() {
+  const learnings = getLearnings();
+  if (!learnings.length) return '';
+  return '\n\n【经验记录（供参考）】\n' +
+    learnings.slice(0, 10).map((l, i) => `${i + 1}. [${l.type}] ${l.summary}`).join('\n');
+}
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:64px;left:50%;transform:translateX(-50%);' +
+    'background:var(--accent);color:#fff;padding:6px 16px;border-radius:12px;' +
+    'font-size:12px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none';
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = '1');
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2500);
+}
 let pendingImages = [];
 let pendingContext = null;
 let autoCtx = null;
@@ -704,6 +857,8 @@ let isStreaming = false;
 let totalTokens = 0;
 let currentSessionId = null;
 let sessions = JSON.parse(localStorage.getItem('vsc_sessions') || '[]');
+// 启动时向 extension 请求持久化的历史（覆盖 localStorage fallback）
+vscode.postMessage({ type: 'requestSessions' });
 
 // ── Session management ──
 function saveSession() {
@@ -717,7 +872,15 @@ function saveSession() {
   const entry = { id: currentSessionId, title, messages: storable, time: Date.now() };
   if (idx >= 0) sessions[idx] = entry;
   else sessions.unshift(entry);
-  localStorage.setItem('vsc_sessions', JSON.stringify(sessions.slice(0, 50)));
+  try {
+    localStorage.setItem('vsc_sessions', JSON.stringify(sessions.slice(0, 50)));
+  } catch (e) {
+    // localStorage 空间不足时，丢弃最旧的几条再试
+    sessions = sessions.slice(0, 20);
+    try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+  }
+  localStorage.setItem('vsc_last_session_id', currentSessionId);
+  vscode.postMessage({ type: 'saveSessions', sessions: sessions.slice(0, 50), lastSessionId: currentSessionId });
   renderDrawerList();
 }
 
@@ -731,9 +894,9 @@ function renderDrawerList() {
   sessions.forEach(s => {
     const item = document.createElement('div');
     item.className = 'drawer-item' + (s.id === currentSessionId ? ' active' : '');
-    item.innerHTML = `<span class="di-icon">💬</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.title)}</span><button class="di-del" data-id="${s.id}" title="删除">✕</button>`;
+    item.innerHTML = `<span class="di-icon">💬</span><span class="di-title" style="flex:1;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.title)}</span><div class="di-actions"><button class="di-rename" title="重命名">✏</button><button class="di-del" title="删除">✕</button></div>`;
     item.addEventListener('click', e => {
-      if (e.target.classList.contains('di-del')) return;
+      if (e.target.classList.contains('di-del') || e.target.classList.contains('di-rename')) return;
       loadSession(s.id);
       closeDrawer();
     });
@@ -741,7 +904,35 @@ function renderDrawerList() {
       e.stopPropagation();
       deleteSession(s.id);
     });
+    item.querySelector('.di-rename').addEventListener('click', e => {
+      e.stopPropagation();
+      startRename(item, s);
+    });
     list.appendChild(item);
+  });
+}
+
+function startRename(item, s) {
+  const titleSpan = item.querySelector('.di-title');
+  const input = document.createElement('input');
+  input.className = 'di-title-input';
+  input.value = s.title;
+  titleSpan.replaceWith(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const newTitle = input.value.trim() || s.title;
+    s.title = newTitle;
+    const idx = sessions.findIndex(x => x.id === s.id);
+    if (idx >= 0) sessions[idx].title = newTitle;
+    try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+    renderDrawerList();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.removeEventListener('blur', commit); renderDrawerList(); }
   });
 }
 
@@ -761,7 +952,8 @@ function loadSession(id) {
 
 function deleteSession(id) {
   sessions = sessions.filter(s => s.id !== id);
-  localStorage.setItem('vsc_sessions', JSON.stringify(sessions));
+  try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+  vscode.postMessage({ type: 'saveSessions', sessions, lastSessionId: currentSessionId });
   if (currentSessionId === id) {
     startNewChat();
   } else {
@@ -773,6 +965,8 @@ function startNewChat() {
   saveSession();
   history = [];
   currentSessionId = null;
+  localStorage.removeItem('vsc_last_session_id');
+  vscode.postMessage({ type: 'saveSessions', sessions, lastSessionId: null });
   pendingImages = [];
   pendingContext = null;
   totalTokens = 0;
@@ -798,12 +992,24 @@ document.getElementById('drawer-overlay').onclick = closeDrawer;
 document.getElementById('drawer-new-btn').onclick = () => { startNewChat(); closeDrawer(); };
 
 // ── Init ──
-if (!apiKey) showSetup();
+vscode.postMessage({ type: 'requestApiKey' });
+if (!apiKey) setTimeout(() => { if (!apiKey) showSetup(); }, 300);
 
 // ── VS Code message handler ──
 window.addEventListener('message', e => {
   const msg = e.data;
-  if (msg.type === 'codeContext') {
+  if (msg.type === 'loadSessions') {
+    if (Array.isArray(msg.sessions) && msg.sessions.length > 0) {
+      sessions = msg.sessions;
+      try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+    }
+    const lastId = msg.lastSessionId || localStorage.getItem('vsc_last_session_id');
+    if (lastId && sessions.find(s => s.id === lastId)) {
+      if (!currentSessionId) loadSession(lastId);
+    } else {
+      renderDrawerList();
+    }
+  } else if (msg.type === 'codeContext') {
     setPendingContext(msg.label, msg.code, msg.lang);
   } else if (msg.type === 'autoContext') {
     if (msg.clear) {
@@ -812,10 +1018,145 @@ window.addEventListener('message', e => {
       autoCtx = { label: msg.label, code: msg.code, lang: msg.lang };
     }
     renderAutoCtxBar();
+  } else if (msg.type === 'loadApiKey') {
+    if (msg.key) {
+      apiKey = msg.key;
+      localStorage.setItem('sf_api_key', msg.key);
+      document.getElementById('setup-overlay').style.display = 'none';
+    }
+  } else if (msg.type === 'applyCodeResult') {
+    if (msg.success) showToast('✅ 代码已写入编辑器');
+    else showToast('⚠️ ' + (msg.error || '应用失败，请先打开文件'));
   } else if (msg.type === 'editorContext') {
     if (msg.error) {
       setStatus(msg.error, 'error');
       addSystemHint(msg.error);
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'generate-image') {
+    const b = window._imageBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      if (msg.error) {
+        b.innerHTML = renderMarkdown(`⚠️ 图片生成失败：${escapeHtml(msg.error)}`);
+      } else {
+        b.innerHTML = `<div style="font-size:12px;color:var(--text-dim);margin-bottom:6px">🎨 ${escapeHtml(msg.prompt || '')}</div>` +
+          `<img src="data:${msg.mimeType};base64,${msg.imageData}" style="max-width:100%;border-radius:8px;display:block" />`;
+        history.push({ role: 'assistant', content: `[已生成图片：${msg.prompt}]` });
+        saveSession();
+      }
+      window._imageBubble = null;
+      setStatus('就绪');
+      scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'browse') {
+    const b = window._browseBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.error ? `⚠️ ${escapeHtml(msg.error)}` : msg.result);
+      history.push({ role: 'assistant', content: msg.result || msg.error });
+      saveSession(); setStatus('就绪'); scrollBottom();
+      window._browseBubble = null;
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'maton-api') {
+    const b = window._matonBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.error ? `⚠️ ${escapeHtml(msg.error)}` : '```json\n' + msg.result + '\n```');
+      history.push({ role: 'assistant', content: msg.result || msg.error });
+      saveSession(); setStatus('就绪'); scrollBottom();
+      window._matonBubble = null;
+    }
+  } else if (msg.type === 'toolResponse' && (msg.tool === 'admapix-search' || msg.tool === 'admapix-deep')) {
+    const b = window._admapixBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.result);
+      window._admapixBubble = null;
+      setStatus('就绪');
+      history.push({ role: 'assistant', content: msg.result });
+      saveSession();
+      scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'search') {
+    if (pendingSearchEl) {
+      pendingSearchEl.classList.remove('streaming');
+      pendingSearchEl.innerHTML = renderMarkdown(msg.result);
+      pendingSearchEl = null;
+      setStatus('就绪');
+      history.push({ role: 'assistant', content: msg.result });
+      saveSession();
+      scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'baidu-search') {
+    const b = window._baiduBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      const text = msg.result?.error ? `⚠️ 百度搜索失败：${msg.result.error}` : `🔍 **百度搜索结果**\n\n${msg.result?.text || '无结果'}`;
+      b.innerHTML = renderMarkdown(text);
+      window._baiduBubble = null;
+      history.push({ role: 'assistant', content: text });
+      saveSession(); scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'prismfy-search') {
+    const b = window._prismfyBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      let text;
+      if (msg.result?.error) { text = `⚠️ Prismfy 搜索失败：${msg.result.error}`; }
+      else {
+        const results = msg.result?.json?.results || msg.result?.json || [];
+        if (Array.isArray(results) && results.length) {
+          text = `🔎 **多引擎搜索结果**\n\n` + results.slice(0, 8).map(r => `- [${r.title || r.url}](${r.url})\n  ${r.snippet || ''}`).join('\n');
+        } else { text = `🔎 **搜索结果**\n\n\`\`\`json\n${JSON.stringify(msg.result?.json, null, 2).slice(0, 2000)}\n\`\`\``; }
+      }
+      b.innerHTML = renderMarkdown(text);
+      window._prismfyBubble = null;
+      history.push({ role: 'assistant', content: text }); saveSession(); scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'bilibili-search') {
+    const b = window._bilibiliBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.result || '⚠️ 未返回结果');
+      window._bilibiliBubble = null;
+      history.push({ role: 'assistant', content: msg.result }); saveSession(); scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'exec-skill') {
+    // 模式1：agentic loop（Promise 回调）
+    if (window._pendingExecs?.[msg.id]) {
+      window._pendingExecs[msg.id](msg.result);
+      delete window._pendingExecs[msg.id];
+    }
+    // 模式2：slash command（UI 气泡更新）
+    const entry = (window._execBubbles || {})[msg.id];
+    if (entry) {
+      const { bubble, type } = entry;
+      bubble.classList.remove('streaming');
+      delete window._execBubbles[msg.id];
+      const { stdout, stderr, error } = msg.result || {};
+      let text;
+      if (error && !stdout) { text = `⚠️ 执行失败：${error}\n${stderr || ''}`; }
+      else {
+        const out = (stdout || '').trim() || stderr || '（无输出）';
+        const icons = { excel: '📗', word: '📘', spotify: '🎵', obsidian: '💎', mcp: '📦', 'skill-finder': '🔍', email: '📧', file: '📄' };
+        const icon = icons[type] || '⚡';
+        try {
+          if (type === 'excel') {
+            const json = JSON.parse(out);
+            const sheets = Object.keys(json);
+            text = sheets.map(s => {
+              const rows = json[s];
+              if (!rows.length) return `**${s}**：（空）`;
+              const header = rows[0].join(' | ');
+              const sep = rows[0].map(() => '---').join(' | ');
+              const body = rows.slice(1).map(r => r.join(' | ')).join('\n');
+              return `**Sheet: ${s}**\n\n| ${header} |\n| ${sep} |\n${rows.slice(1).map(r => '| ' + r.join(' | ') + ' |').join('\n')}`;
+            }).join('\n\n');
+          } else { text = `${icon} **结果**\n\n\`\`\`\n${out.slice(0, 3000)}\n\`\`\``; }
+        } catch { text = `${icon} **结果**\n\n\`\`\`\n${out.slice(0, 3000)}\n\`\`\``; }
+      }
+      bubble.innerHTML = renderMarkdown(text);
+      history.push({ role: 'assistant', content: text }); saveSession(); scrollBottom();
     }
   }
 });
@@ -823,6 +1164,7 @@ window.addEventListener('message', e => {
 // ── Setup ──
 function showSetup() {
   document.getElementById('setup-overlay').style.display = 'flex';
+  document.getElementById('base-url-input').value = baseURL === 'https://api.siliconflow.cn' ? '' : baseURL;
   setTimeout(() => document.getElementById('api-key-input').focus(), 100);
 }
 document.getElementById('save-key-btn').onclick = () => {
@@ -830,6 +1172,10 @@ document.getElementById('save-key-btn').onclick = () => {
   if (!key) return;
   apiKey = key;
   localStorage.setItem('sf_api_key', key);
+  const urlInput = document.getElementById('base-url-input').value.trim().replace(/\/$/, '');
+  baseURL = urlInput || 'https://api.siliconflow.cn';
+  localStorage.setItem('sf_base_url', baseURL);
+  vscode.postMessage({ type: 'saveApiKey', key });
   document.getElementById('setup-overlay').style.display = 'none';
   setStatus('API Key 已保存 🐱喵~');
 };
@@ -838,12 +1184,13 @@ document.getElementById('api-key-input').addEventListener('keydown', e => {
 });
 function openSettings() {
   document.getElementById('api-key-input').value = apiKey;
+  document.getElementById('base-url-input').value = baseURL === 'https://api.siliconflow.cn' ? '' : baseURL;
   showSetup();
 }
 
 // ── Model ──
 const modelSelect = document.getElementById('model-select');
-modelSelect.value = localStorage.getItem('sf_model') || 'Qwen/Qwen2.5-VL-72B-Instruct';
+modelSelect.value = localStorage.getItem('sf_model') || 'deepseek-ai/DeepSeek-V3';
 modelSelect.onchange = () => localStorage.setItem('sf_model', modelSelect.value);
 
 // ── New chat ──
@@ -876,6 +1223,7 @@ function showWelcome() {
 
 // ── Slash commands ──
 const SLASH_COMMANDS = [
+  { cmd: '/搜索', icon: '🌐', desc: '联网搜索实时信息', prompt: '/搜索 ' },
   { cmd: '/解释', icon: '📖', desc: '解释代码作用和逻辑', prompt: '请解释这段代码的作用和逻辑' },
   { cmd: '/修复', icon: '🐛', desc: '找出并修复 Bug', prompt: '帮我找出并修复代码中的 bug，并解释原因' },
   { cmd: '/优化', icon: '⚡', desc: '优化代码性能和质量', prompt: '帮我优化这段代码，提升性能和可读性' },
@@ -883,7 +1231,28 @@ const SLASH_COMMANDS = [
   { cmd: '/审查', icon: '🔍', desc: '代码审查', prompt: '帮我审查这段代码，指出潜在问题和改进建议' },
   { cmd: '/文档', icon: '📝', desc: '生成注释和文档', prompt: '帮我为这段代码生成详细的注释和文档说明' },
   { cmd: '/翻译', icon: '🌐', desc: '翻译注释为中文', prompt: '把代码中的英文注释全部翻译成中文' },
+  { cmd: '/查看记录', icon: '📚', desc: '查看自动记录的经验', prompt: '/查看记录' },
+  { cmd: '/画图', icon: '🎨', desc: 'AI 生成图片（需 Gemini Key）', prompt: '/画图 ' },
+  { cmd: '/找素材', icon: '🎯', desc: '搜索广告素材（需AdMapix Key）', prompt: '/找素材 ' },
+  { cmd: '/广告分析', icon: '📊', desc: '深度分析App广告策略', prompt: '/广告分析 ' },
+  { cmd: '/记住', icon: '🧠', desc: '记住一条知识到知识库', prompt: '/记住 ' },
+  { cmd: '/查询', icon: '🔎', desc: '查询知识库中的实体', prompt: '/查询 ' },
+  { cmd: '/知识库', icon: '🗂️', desc: '查看全部知识库内容', prompt: '/知识库' },
+  { cmd: '/浏览', icon: '🌐', desc: '打开网页并读取内容', prompt: '/浏览 ' },
+  { cmd: '/maton', icon: '🔗', desc: '调用第三方API（需 Maton Key）', prompt: '/maton ' },
+  { cmd: '/百度', icon: '🔍', desc: '百度AI搜索（需 Baidu Key）', prompt: '/百度 ' },
+  { cmd: '/bili', icon: '📺', desc: '搜索B站最新视频', prompt: '/bili ' },
+  { cmd: '/prismfy', icon: '🔎', desc: '多引擎搜索Google/Reddit/GitHub（需Key）', prompt: '/prismfy ' },
+  { cmd: '/读Excel', icon: '📗', desc: '读取 Excel 文件内容', prompt: '/读Excel ' },
+  { cmd: '/读Word', icon: '📘', desc: '读取 Word 文档内容', prompt: '/读Word ' },
+  { cmd: '/播放', icon: '🎵', desc: 'Spotify 搜索/播放（需 spogo）', prompt: '/播放 ' },
+  { cmd: '/笔记', icon: '💎', desc: '搜索 Obsidian 笔记', prompt: '/笔记 ' },
+  { cmd: '/mcp', icon: '📦', desc: '调用 MCP 工具（需 mcporter）', prompt: '/mcp ' },
+  { cmd: '/找技能', icon: '🔍', desc: '搜索 ClawHub 技能', prompt: '/找技能 ' },
+  { cmd: '/邮件', icon: '📧', desc: '收发邮件（需配置IMAP/SMTP）', prompt: '/邮件 ' },
+  { cmd: '/读文件', icon: '📄', desc: '读取任意文件内容', prompt: '/读文件 ' },
 ];
+let pendingSearchEl = null;
 let cmdPopupOpen = false;
 let cmdSelectedIndex = 0;
 const cmdPopup = document.getElementById('cmd-popup');
@@ -936,10 +1305,12 @@ inputEl.addEventListener('keydown', e => {
       e.preventDefault();
       cmdSelectedIndex = (cmdSelectedIndex + 1) % items.length;
       items.forEach((el, i) => el.classList.toggle('selected', i === cmdSelectedIndex));
+      items[cmdSelectedIndex].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       cmdSelectedIndex = (cmdSelectedIndex - 1 + items.length) % items.length;
       items.forEach((el, i) => el.classList.toggle('selected', i === cmdSelectedIndex));
+      items[cmdSelectedIndex].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'Tab' || e.key === 'Enter') {
       e.preventDefault();
       const sel = items[cmdSelectedIndex];
@@ -1080,10 +1451,480 @@ sendBtn.onclick = () => {
   sendMessage();
 };
 
+function handleSearch(query) {
+  if (!currentSessionId) currentSessionId = Date.now().toString();
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+  addUserMessage(`/搜索 ${query}`, [], null, null);
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  const bubble = addAIMessage();
+  bubble.textContent = '搜索中...';
+  pendingSearchEl = bubble;
+  setStatus('搜索中...', 'thinking');
+  vscode.postMessage({ type: 'tool', tool: 'search', query });
+}
+
 async function sendMessage() {
   if (!apiKey) { showSetup(); return; }
   const text = inputEl.value.trim();
   if (!text && !pendingImages.length && !pendingContext) return;
+
+  // Intercept /查看记录 command
+  if (text === '/查看记录') {
+    inputEl.value = '';
+    const learnings = getLearnings();
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    if (!learnings.length) {
+      bubble.innerHTML = renderMarkdown('📚 暂无记录的经验。');
+    } else {
+      const content = '📚 **已记录的经验**\n\n' +
+        learnings.map((l, i) =>
+          `${i + 1}. **[${l.type}]** ${l.summary}\n   *${new Date(l.time).toLocaleString('zh-CN')}*`
+        ).join('\n\n');
+      bubble.innerHTML = renderMarkdown(content);
+    }
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /知识库 command
+  if (text === '/知识库') {
+    inputEl.value = '';
+    const { entities } = getOntology();
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    if (!entities.length) {
+      bubble.innerHTML = renderMarkdown('🗂️ 知识库为空。用 `/记住 [内容]` 添加。');
+    } else {
+      const grouped = {};
+      entities.forEach(e => { (grouped[e.type] = grouped[e.type] || []).push(e); });
+      let content = '🗂️ **知识库全览**\n\n';
+      Object.entries(grouped).forEach(([type, items]) => {
+        content += `**${type}**（${items.length}条）\n`;
+        items.forEach((e, i) => {
+          content += `${i + 1}. ${Object.entries(e.properties).map(([k, v]) => `${k}:${v}`).join('，')}\n`;
+        });
+        content += '\n';
+      });
+      bubble.innerHTML = renderMarkdown(content);
+    }
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /查询 command
+  if (/^\/查询\s+/.test(text)) {
+    inputEl.value = '';
+    const keyword = text.replace(/^\/查询\s+/, '').trim();
+    const results = ontologySearch(keyword);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    if (!results.length) {
+      bubble.innerHTML = renderMarkdown(`🔎 知识库中没有找到与 **${escapeHtml(keyword)}** 相关的内容。`);
+    } else {
+      let content = `🔎 **查询"${keyword}"的结果**（${results.length}条）\n\n`;
+      results.forEach((e, i) => {
+        content += `${i + 1}. **[${e.type}]** ${Object.entries(e.properties).map(([k, v]) => `${k}:${v}`).join('，')}\n`;
+      });
+      bubble.innerHTML = renderMarkdown(content);
+    }
+    scrollBottom();
+    return;
+  }
+
+  // ── AdMapix helper ──
+  function admapixSetupMsg(bubble) {
+    bubble.classList.remove('streaming');
+    bubble.innerHTML = renderMarkdown(
+      '🔑 **需要先配置 AdMapix API Key**\n\n' +
+      '1. 前往 [admapix.com](https://www.admapix.com) 注册账号\n' +
+      '2. 登录后在控制台创建 API Key\n' +
+      '3. 把 Key 粘贴到下方输入框，回车保存\n\n' +
+      '> 输入格式：`/admapix-key sk-xxxxxx`'
+    );
+  }
+
+  // Intercept /gemini-key command
+  if (/^\/gemini-key\s+/.test(text)) {
+    inputEl.value = '';
+    geminiKey = text.replace(/^\/gemini-key\s+/, '').trim();
+    localStorage.setItem('gemini_api_key', geminiKey);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    bubble.innerHTML = renderMarkdown('✅ Gemini API Key 已保存，现在可以使用 `/画图` 了。');
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /画图 command
+  if (/^\/画图\s+/.test(text)) {
+    inputEl.value = '';
+    if (!geminiKey) {
+      const b = addAIMessage();
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(
+        '🔑 **需要先配置 Gemini API Key**\n\n' +
+        '1. 前往 [Google AI Studio](https://aistudio.google.com) 获取 API Key\n' +
+        '2. 粘贴到下方：`/gemini-key AIza...`'
+      );
+      scrollBottom();
+      return;
+    }
+    const prompt = text.replace(/^\/画图\s+/, '').trim();
+    // 解析分辨率参数 --4K / --2K / --1K
+    const resMatch = prompt.match(/--([124]K)\b/i);
+    const resolution = resMatch ? resMatch[1].toUpperCase() : '1K';
+    const cleanPrompt = prompt.replace(/--[124]K\b/gi, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🎨 正在生成图片（${resolution}）：**${escapeHtml(cleanPrompt)}**\n\n*预计需要 10~30 秒...*`);
+    vscode.postMessage({ type: 'tool', tool: 'generate-image', prompt: cleanPrompt, resolution, apiKey: geminiKey });
+    window._imageBubble = bubble;
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /maton-key command
+  if (/^\/maton-key\s+/.test(text)) {
+    inputEl.value = '';
+    matonKey = text.replace(/^\/maton-key\s+/, '').trim();
+    localStorage.setItem('maton_api_key', matonKey);
+    const b = addAIMessage(); b.classList.remove('streaming');
+    b.innerHTML = renderMarkdown('✅ Maton API Key 已保存，现在可以使用 `/maton` 调用第三方服务了。');
+    scrollBottom(); return;
+  }
+
+  // Intercept /maton command
+  if (/^\/maton\s+/.test(text)) {
+    inputEl.value = '';
+    if (!matonKey) {
+      const b = addAIMessage(); b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown('🔑 **需要先配置 Maton API Key**\n\n1. 注册 [maton.ai](https://maton.ai) 并复制 API Key\n2. 输入：`/maton-key your_key`');
+      scrollBottom(); return;
+    }
+    const args = text.replace(/^\/maton\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔗 调用 API：\`${escapeHtml(args)}\`\n\n*请求中...*`);
+    vscode.postMessage({ type: 'tool', tool: 'maton-api', args, apiKey: matonKey });
+    window._matonBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /浏览 command
+  if (/^\/浏览\s+/.test(text)) {
+    inputEl.value = '';
+    const url = text.replace(/^\/浏览\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🌐 正在打开：${escapeHtml(url)}\n\n*加载中...*`);
+    vscode.postMessage({ type: 'tool', tool: 'browse', url });
+    window._browseBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /admapix-key command
+  if (/^\/admapix-key\s+/.test(text)) {
+    inputEl.value = '';
+    const key = text.replace(/^\/admapix-key\s+/, '').trim();
+    admapixKey = key;
+    localStorage.setItem('admapix_api_key', key);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    bubble.innerHTML = renderMarkdown('✅ AdMapix API Key 已保存，现在可以使用 `/找素材` 和 `/广告分析` 了。');
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /找素材 command
+  if (/^\/找素材\s+/.test(text)) {
+    inputEl.value = '';
+    if (!admapixKey) { const b = addAIMessage(); admapixSetupMsg(b); scrollBottom(); return; }
+    const keyword = text.replace(/^\/找素材\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🎯 正在搜索 **${escapeHtml(keyword)}** 相关素材...`);
+    vscode.postMessage({ type: 'tool', tool: 'admapix-search', query: keyword, apiKey: admapixKey });
+    window._admapixBubble = bubble;
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /广告分析 command
+  if (/^\/广告分析\s+/.test(text)) {
+    inputEl.value = '';
+    if (!admapixKey) { const b = addAIMessage(); admapixSetupMsg(b); scrollBottom(); return; }
+    const appName = text.replace(/^\/广告分析\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📊 正在深度分析 **${escapeHtml(appName)}** 的广告策略，预计需要 1~3 分钟...`);
+    vscode.postMessage({ type: 'tool', tool: 'admapix-deep', query: appName, apiKey: admapixKey });
+    window._admapixBubble = bubble;
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /记住 command
+  if (/^\/记住\s+/.test(text)) {
+    inputEl.value = '';
+    const content = text.replace(/^\/记住\s+/, '').trim();
+    if (!content) return;
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown('🧠 正在提取结构化信息...');
+
+    const extractPrompt =
+      `从以下内容提取一个结构化实体，返回JSON：\n{"type":"Person|Project|Task|Note|Organization|Device|Event","properties":{"key":"value",...},"summary":"一句话描述"}\n` +
+      `内容：${content}\n只输出JSON，不要其他文字。`;
+    try {
+      const res = await fetch(`${baseURL}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'Qwen/Qwen2.5-7B-Instruct',
+          messages: [{ role: 'user', content: extractPrompt }],
+          max_tokens: 200, temperature: 0
+        })
+      });
+      const data = await res.json();
+      const raw = (data.choices?.[0]?.message?.content || '').replace(/```json\n?|\n?```/g, '').trim();
+      const json = JSON.parse(raw);
+      if (json.type && json.properties) {
+        const id = ontologyAddEntity(json.type, json.properties);
+        bubble.classList.remove('streaming');
+        bubble.innerHTML = renderMarkdown(
+          `✅ 已记入知识库\n\n**类型：** ${json.type}\n**内容：** ${json.summary || Object.entries(json.properties).map(([k,v])=>`${k}:${v}`).join('，')}\n**ID：** \`${id}\``
+        );
+        showToast('🧠 知识库已更新');
+      } else {
+        bubble.innerHTML = renderMarkdown('⚠️ 未能解析结构化内容，请换一种描述方式。');
+      }
+    } catch (e) {
+      bubble.innerHTML = renderMarkdown(`⚠️ 提取失败：${escapeHtml(e.message)}`);
+    }
+    bubble.classList.remove('streaming');
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /baidu-key command
+  if (/^\/baidu-key\s+/.test(text)) {
+    baiduKey = text.replace(/^\/baidu-key\s+/, '').trim();
+    localStorage.setItem('baidu_api_key', baiduKey);
+    inputEl.value = '';
+    const b = addAIMessage(); b.classList.remove('streaming');
+    b.innerHTML = renderMarkdown('✅ 百度 API Key 已保存，现在可以使用 `/百度` 搜索了。');
+    scrollBottom(); return;
+  }
+
+  // Intercept /百度 command
+  if (/^\/百度\s+/.test(text)) {
+    inputEl.value = '';
+    if (!baiduKey) {
+      const b = addAIMessage(); b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown('🔑 **需要先配置百度 API Key**\n\n1. 前往 [console.bce.baidu.com](https://console.bce.baidu.com) 获取 Key\n2. 输入：`/baidu-key your_key`');
+      scrollBottom(); return;
+    }
+    const query = text.replace(/^\/百度\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /百度 Python异步编程'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔍 正在百度搜索：**${escapeHtml(query)}**...`);
+    vscode.postMessage({ type: 'tool', tool: 'baidu-search', query, apiKey: baiduKey });
+    window._baiduBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /prismfy-key command
+  if (/^\/prismfy-key\s+/.test(text)) {
+    prismfyKey = text.replace(/^\/prismfy-key\s+/, '').trim();
+    localStorage.setItem('prismfy_api_key', prismfyKey);
+    inputEl.value = '';
+    const b = addAIMessage(); b.classList.remove('streaming');
+    b.innerHTML = renderMarkdown('✅ Prismfy API Key 已保存，现在可以使用 `/prismfy` 多引擎搜索了。');
+    scrollBottom(); return;
+  }
+
+  // Intercept /prismfy command
+  if (/^\/prismfy\s+/.test(text)) {
+    inputEl.value = '';
+    if (!prismfyKey) {
+      const b = addAIMessage(); b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown('🔑 **需要先配置 Prismfy API Key**\n\n输入：`/prismfy-key your_key`');
+      scrollBottom(); return;
+    }
+    const query = text.replace(/^\/prismfy\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /prismfy Claude API rate limit'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔎 正在多引擎搜索：**${escapeHtml(query)}**...`);
+    vscode.postMessage({ type: 'tool', tool: 'prismfy-search', query, apiKey: prismfyKey });
+    window._prismfyBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /bili command
+  if (/^\/bili\s+/.test(text)) {
+    inputEl.value = '';
+    let query = text.replace(/^\/bili\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /bili 陈抱一'); return; }
+    // 如果是自然语言指令，提取核心搜索词（如"帮我搜索陈抱一的最新视频"→"陈抱一"）
+    const nlExtract = query.match(/(?:搜索?|查找?|找)[一下]?\s*(.+?)(?:的(?:最新)?(?:视频|内容|作品|直播))?$/u);
+    if (nlExtract && nlExtract[1] && nlExtract[1].length < query.length) query = nlExtract[1].trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📺 正在搜索B站最新视频：**${escapeHtml(query)}**...`);
+    vscode.postMessage({ type: 'tool', tool: 'bilibili-search', query });
+    window._bilibiliBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept natural language B站 search
+  {
+    const biliMatch = text.match(/(?:去|帮我去?|在|用)?[Bb]站(?:搜索?|找|查)[一下]?\s*(.+?)(?:的)?(?:最新)?(?:视频)?$/u)
+      || text.match(/搜[一下]?(.+?)(?:的)?(?:最新)?视频.*[Bb]站/u)
+      || text.match(/[Bb]站.*?["""](.+?)["""]/u);
+    if (biliMatch) {
+      const query = (biliMatch[1] || '').trim();
+      if (query) {
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.innerHTML = renderMarkdown(`📺 正在搜索B站最新视频：**${escapeHtml(query)}**...`);
+        vscode.postMessage({ type: 'tool', tool: 'bilibili-search', query });
+        window._bilibiliBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // Intercept /读Excel command
+  if (/^\/读Excel\s+/.test(text)) {
+    inputEl.value = '';
+    const path = text.replace(/^\/读Excel\s+/, '').trim();
+    if (!path) { addSystemHint('请输入文件路径，例如: /读Excel C:/data.xlsx'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📗 正在读取 Excel：**${escapeHtml(path)}**...`);
+    const cmd = `uv run --with openpyxl python -c "import openpyxl,json; wb=openpyxl.load_workbook(r'${path.replace(/'/g, "\\'")}'); out={}; [out.update({s:[[str(c.value) if c.value is not None else '' for c in r] for r in wb[s].iter_rows()]}) for s in wb.sheetnames]; print(json.dumps(out,ensure_ascii=False))"`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'excel' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /读Word command
+  if (/^\/读Word\s+/.test(text)) {
+    inputEl.value = '';
+    const path = text.replace(/^\/读Word\s+/, '').trim();
+    if (!path) { addSystemHint('请输入文件路径，例如: /读Word C:/doc.docx'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📘 正在读取 Word：**${escapeHtml(path)}**...`);
+    const cmd = `uv run --with python-docx python -c "from docx import Document; doc=Document(r'${path.replace(/'/g, "\\'")}'); print('\\n'.join([p.text for p in doc.paragraphs]))"`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'word' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /播放 command
+  if (/^\/播放\s+/.test(text)) {
+    inputEl.value = '';
+    const args = text.replace(/^\/播放\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🎵 正在操作 Spotify：**${escapeHtml(args)}**...`);
+    const cmd = `spogo search track "${args.replace(/"/g, '\\"')}" 2>&1 || spotify_player search "${args.replace(/"/g, '\\"')}" 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'spotify' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /笔记 command
+  if (/^\/笔记\s+/.test(text)) {
+    inputEl.value = '';
+    const query = text.replace(/^\/笔记\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /笔记 项目规划'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`💎 正在搜索 Obsidian 笔记：**${escapeHtml(query)}**...`);
+    const cmd = `obsidian-cli search "${query.replace(/"/g, '\\"')}" 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'obsidian' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /mcp command
+  if (/^\/mcp\s+/.test(text)) {
+    inputEl.value = '';
+    const args = text.replace(/^\/mcp\s+/, '').trim();
+    if (!args) { addSystemHint('例如: /mcp list  或  /mcp call linear.list_issues limit=5'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📦 正在执行 MCP：**${escapeHtml(args)}**...`);
+    const cmd = `mcporter ${args} 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'mcp' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /找技能 command
+  if (/^\/找技能\s+/.test(text)) {
+    inputEl.value = '';
+    const query = text.replace(/^\/找技能\s+/, '').trim();
+    if (!query) { addSystemHint('请输入关键词，例如: /找技能 翻译'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔍 正在搜索 ClawHub 技能：**${escapeHtml(query)}**...`);
+    const cmd = `clawhub search "${query.replace(/"/g, '\\"')}" --limit 10 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'skill-finder' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /邮件 command
+  if (/^\/邮件/.test(text)) {
+    inputEl.value = '';
+    const args = text.replace(/^\/邮件\s*/, '').trim() || 'inbox';
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📧 正在操作邮件：**${escapeHtml(args)}**...`);
+    const cmd = `node "%USERPROFILE%/.codex/skills/imap-smtp-email/scripts/email.js" ${args} 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'email' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /读文件 command
+  if (/^\/读文件\s+/.test(text)) {
+    inputEl.value = '';
+    const filePath = text.replace(/^\/读文件\s+/, '').trim();
+    if (!filePath) { addSystemHint('请输入文件路径，例如: /读文件 C:/Users/me/notes.txt'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📄 正在读取：**${escapeHtml(filePath)}**...`);
+    const cmd = `node -e "try{const fs=require('fs');const c=fs.readFileSync(${JSON.stringify(filePath)},'utf8');process.stdout.write(c.slice(0,8000)+(c.length>8000?'\\n...(已截取前8000字)':'')}catch(e){process.stdout.write('错误：'+e.message)}"`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'file' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /搜索 command
+  if (/^\/搜索\s+/.test(text)) {
+    const query = text.replace(/^\/搜索\s+/, '').trim();
+    if (query) { handleSearch(query); return; }
+    addSystemHint('请输入搜索关键词，例如: /搜索 Python教程');
+    return;
+  }
 
   // Init session
   if (!currentSessionId) currentSessionId = Date.now().toString();
@@ -1149,19 +1990,34 @@ function addUserMessage(text, images, ctx, aCtx) {
   if (ctx) {
     bubble += `<div class="context-block"><div class="context-header">📎 ${escapeHtml(ctx.label)}</div><code>${escapeHtml(ctx.code.slice(0, 500))}${ctx.code.length > 500 ? '\n...' : ''}</code></div>`;
   }
-  for (const img of images) {
+  for (const img of (images || [])) {
     bubble += `<img src="${img.dataUrl}">`;
   }
   if (text) bubble += escapeHtml(text).replace(/\n/g, '<br>');
 
+  const msgIndex = history.length;
   div.innerHTML = `
     <div class="msg-avatar">⭐</div>
     <div class="msg-content">
       <div class="msg-bubble">${bubble}</div>
-      <div class="msg-time">${timeStr()}</div>
+      <div class="msg-meta"><div class="msg-time">${timeStr()}</div><button class="msg-retry" title="重新发送" onclick="retryMessage(${msgIndex})">↺</button></div>
     </div>`;
   msgs.appendChild(div);
   scrollBottom();
+}
+
+function getModelShortName(modelId) {
+  const map = {
+    'Qwen/Qwen3-235B-A22B': 'Qwen3-235B',
+    'Qwen/Qwen3-32B': 'Qwen3-32B',
+    'deepseek-ai/DeepSeek-R1-0528': 'R1-0528',
+    'deepseek-ai/DeepSeek-V3': 'DeepSeek-V3',
+    'deepseek-ai/DeepSeek-R1': 'DeepSeek-R1',
+    'Qwen/Qwen2.5-VL-72B-Instruct': 'Qwen2.5-VL-72B',
+    'Qwen/Qwen2.5-72B-Instruct': 'Qwen2.5-72B',
+    'Qwen/Qwen2.5-7B-Instruct': 'Qwen2.5-7B',
+  };
+  return map[modelId] || modelId.split('/').pop();
 }
 
 function addAIMessage() {
@@ -1170,13 +2026,20 @@ function addAIMessage() {
   div.className = 'msg ai';
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble streaming';
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
   const time = document.createElement('div');
   time.className = 'msg-time';
   time.textContent = timeStr();
+  const modelInfo = document.createElement('div');
+  modelInfo.className = 'msg-model';
+  modelInfo.textContent = getModelShortName(modelSelect.value) + ' · 思考中';
+  meta.appendChild(time);
+  meta.appendChild(modelInfo);
   const content = document.createElement('div');
   content.className = 'msg-content';
   content.appendChild(bubble);
-  content.appendChild(time);
+  content.appendChild(meta);
   div.innerHTML = '<div class="msg-avatar">🐱</div>';
   div.appendChild(content);
   msgs.appendChild(div);
@@ -1184,7 +2047,37 @@ function addAIMessage() {
   return bubble;
 }
 
-async function streamResponse(el) {
+async function evaluateLearning(userMsg, aiResponse) {
+  if (!apiKey || !userMsg || !aiResponse) return;
+  if (typeof userMsg !== 'string' || userMsg.startsWith('/')) return;
+  const prompt =
+    `分析以下对话，判断是否出现了需要记录的内容：用户纠正AI错误、发现非显然解决方案、AI知识有误、重要项目约定等。\n` +
+    `用户：${userMsg.slice(0, 300)}\nAI：${aiResponse.slice(0, 500)}\n` +
+    `需要记录则返回JSON：{"log":true,"type":"correction|insight|error|convention","summary":"一句话摘要不超过40字"}\n` +
+    `不需要则只返回：{"log":false}\n只输出JSON，不要其他任何文字。`;
+  try {
+    const res = await fetch(`${baseURL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'Qwen/Qwen2.5-7B-Instruct',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 120,
+        temperature: 0
+      })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const raw = (data.choices?.[0]?.message?.content || '').replace(/```json\n?|\n?```/g, '').trim();
+    const json = JSON.parse(raw);
+    if (json.log && json.summary) {
+      saveLearning({ type: json.type || 'insight', summary: json.summary, time: new Date().toISOString() });
+      showToast('📌 已记录一条经验');
+    }
+  } catch {}
+}
+
+async function streamResponse(el, _toolIteration = 0) {
   isStreaming = true;
   sendBtn.innerHTML = '■';
   sendBtn.classList.add('stop');
@@ -1194,21 +2087,33 @@ async function streamResponse(el) {
   abortCtrl = new AbortController();
   let fullText = '';
   let usage = null;
+  let rafPending = false;
 
   try {
     const model = modelSelect.value;
+    // 按 token 估算截断历史（中文约2字/token，英文约4字/token，取平均3字/token）
+    const MAX_HIST_TOKENS = 60000;
+    let histTokens = 0, histStart = history.length;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const c = history[i].content;
+      const len = typeof c === 'string' ? c.length : JSON.stringify(c).length;
+      histTokens += Math.ceil(len / 3);
+      if (histTokens > MAX_HIST_TOKENS) break;
+      histStart = i;
+    }
+    const trimmedHistory = history.slice(histStart);
     const body = {
       model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...history
+        { role: 'system', content: SYSTEM_PROMPT + buildLearningsPrompt() + buildOntologyPrompt((() => { const c = trimmedHistory[trimmedHistory.length - 1]?.content; return Array.isArray(c) ? c.map(x => x.text || '').join(' ') : (c || ''); })()) },
+        ...trimmedHistory
       ],
       stream: true,
       max_tokens: 4096,
       temperature: 0.7,
     };
 
-    const res = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+    const res = await fetch(`${baseURL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1243,9 +2148,14 @@ async function streamResponse(el) {
           const delta = evt.choices?.[0]?.delta?.content;
           if (delta) {
             fullText += delta;
-            el.innerHTML = renderMarkdown(fullText);
-            el.querySelectorAll('pre code').forEach(addCopyBtn);
-            scrollBottom();
+            if (!rafPending) {
+              rafPending = true;
+              requestAnimationFrame(() => {
+                el.innerHTML = renderMarkdown(fullText);
+                scrollBottom();
+                rafPending = false;
+              });
+            }
           }
           if (evt.usage) usage = evt.usage;
         } catch {}
@@ -1269,8 +2179,67 @@ async function streamResponse(el) {
   }
 
   el.classList.remove('streaming');
+  // Update model info: remove "思考中"
+  const modelInfoEl = el.parentElement?.querySelector('.msg-model');
+  if (modelInfoEl) modelInfoEl.textContent = getModelShortName(modelSelect.value);
+
+  // ── Tool-use loop ──
+  const toolCalls = [...fullText.matchAll(/<tool name="exec">([\s\S]*?)<\/tool>/g)];
+  if (toolCalls.length > 0 && _toolIteration < MAX_TOOL_ITER) {
+    history.push({ role: 'assistant', content: fullText });
+    el.innerHTML = renderMarkdown(fullText) +
+      '<div style="margin-top:8px;color:var(--muted);font-size:12px">⚙️ 正在执行工具...</div>';
+
+    const results = [];
+    const failedTools = [];
+    for (const match of toolCalls) {
+      const cmd = match[1].trim();
+      let result;
+      try { result = await execSkillAsync(cmd); } catch (e) { result = { error: e.message }; }
+      const stdout = (result?.stdout || '').trim();
+      const stderr = (result?.stderr || '').trim();
+      const error = (result?.error || '').trim();
+      const failed = !stdout && (stderr || error);
+      if (failed) failedTools.push({ cmd, reason: (stderr || error).slice(0, 300) });
+      const out = stdout || stderr || error || '（无输出）';
+      results.push(`<result cmd="${cmd.replace(/&/g,'&amp;').replace(/</g,'&lt;')}" status="${failed ? 'error' : 'ok'}">\n${out.slice(0, 2000)}\n</result>`);
+    }
+
+    // 工具执行失败时直接停止，不让模型继续编造
+    if (failedTools.length > 0) {
+      el.classList.remove('streaming');
+      const errLines = failedTools.map(f =>
+        `❌ **工具执行失败**\n\`\`\`\n${f.cmd.slice(0, 120)}\n\`\`\`\n错误：${f.reason}`
+      ).join('\n\n');
+      const stopMsg = errLines + '\n\n> 工具执行失败，已停止。请检查环境配置，或换一种方式获取信息。';
+      el.innerHTML = renderMarkdown(stopMsg);
+      history.push({ role: 'assistant', content: stopMsg });
+      saveSession(); scrollBottom();
+      isStreaming = false; abortCtrl = null;
+      sendBtn.innerHTML = '↑'; sendBtn.classList.remove('stop'); sendBtn.title = '发送 (Enter)';
+      setStatus('就绪');
+      return;
+    }
+
+    history.push({ role: 'user', content: results.join('\n') + '\n\n请严格根据以上工具返回的真实内容回答，不得补充、推测或编造任何工具未返回的信息。如果内容不足以回答，直接说"信息不足"。' });
+    const nextEl = addAIMessage();
+    await streamResponse(nextEl, _toolIteration + 1);
+    // 收尾由递归的最后一轮负责，这里只做清理
+    isStreaming = false;
+    abortCtrl = null;
+    sendBtn.innerHTML = '↑';
+    sendBtn.classList.remove('stop');
+    sendBtn.title = '发送 (Enter)';
+    setStatus('就绪');
+    return;
+  }
+
   history.push({ role: 'assistant', content: fullText });
   saveSession();
+
+  // 异步评估是否有值得记录的经验（不阻塞主流程）
+  const lastUserMsg = history.length >= 2 ? history[history.length - 2]?.content : '';
+  if (typeof lastUserMsg === 'string') evaluateLearning(lastUserMsg, fullText);
 
   if (usage) {
     totalTokens += (usage.total_tokens || 0);
@@ -1302,15 +2271,50 @@ function stopStreaming() {
   abortCtrl?.abort();
 }
 
+function retryMessage(msgIndex) {
+  if (isStreaming) return;
+  // 找到这条用户消息在 history 中的位置（msgIndex 是发送时的 history.length）
+  // 截断 history 到该消息（含），重新发送
+  const targetIdx = Math.min(msgIndex, history.length - 1);
+  if (targetIdx < 0 || history[targetIdx]?.role !== 'user') return;
+  history = history.slice(0, targetIdx + 1);
+  // 删除页面上这条消息之后的所有 AI 消息
+  const msgs = document.getElementById('messages');
+  const allMsgs = [...msgs.querySelectorAll('.msg')];
+  // 找到第 (targetIdx) 个用户消息气泡（0-indexed）
+  let userCount = 0;
+  let cutFrom = -1;
+  allMsgs.forEach((el, i) => {
+    if (el.classList.contains('user')) {
+      if (userCount === targetIdx) cutFrom = i + 1;
+      userCount++;
+    }
+  });
+  if (cutFrom >= 0) {
+    allMsgs.slice(cutFrom).forEach(el => el.remove());
+  }
+  const aiEl = addAIMessage();
+  streamResponse(aiEl);
+}
+
 // ── Markdown renderer ──
 function renderMarkdown(text) {
   // Code blocks
   text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    if (lang === 'diff') {
+      const lines = code.trimEnd().split('\n').map(line => {
+        if (line.startsWith('+')) return `<span class="diff-add">${escapeHtml(line)}</span>`;
+        if (line.startsWith('-')) return `<span class="diff-del">${escapeHtml(line)}</span>`;
+        if (line.startsWith('@@')) return `<span class="diff-meta">${escapeHtml(line)}</span>`;
+        return escapeHtml(line);
+      }).join('\n');
+      return `<pre><div class="code-header"><span>diff</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div><code class="language-diff">${lines}</code></pre>`;
+    }
     const escaped = escapeHtml(code.trimEnd());
-    return `<pre><div class="code-header"><span>${lang || 'code'}</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div><code class="language-${lang}">${escaped}</code></pre>`;
+    return `<pre><div class="code-header"><span>${lang || 'code'}</span><div style="display:flex;gap:4px"><button class="copy-btn apply-btn" onclick="applyCode(this)" title="写入当前编辑器">应用</button><button class="copy-btn" onclick="copyCode(this)">复制</button></div></div><code class="language-${lang}">${escaped}</code></pre>`;
   });
   // Inline code
-  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  text = text.replace(/`([^`]+)`/g, (_, c) => `<code>${escapeHtml(c)}</code>`);
   // Headers
   text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -1326,8 +2330,11 @@ function renderMarkdown(text) {
   text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
   text = text.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
   text = text.replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
-  // Links
-  text = text.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
+  // Links (only allow http/https to prevent javascript: injection)
+  text = text.replace(/\[(.+?)\]\((.+?)\)/g, (_, label, url) => {
+    const safe = /^https?:\/\//i.test(url) ? url : '#';
+    return `<a href="${escapeHtml(safe)}" target="_blank">${label}</a>`;
+  });
   // Line breaks (not inside tags)
   text = text.replace(/\n\n/g, '</p><p>');
   text = text.replace(/\n/g, '<br>');
@@ -1339,16 +2346,18 @@ function renderMarkdown(text) {
   return text;
 }
 
-function addCopyBtn(el) {
-  const pre = el.parentElement;
-  if (!pre.querySelector('.code-header')) return;
-}
 function copyCode(btn) {
   const code = btn.closest('pre').querySelector('code').textContent;
   navigator.clipboard.writeText(code).then(() => {
     btn.textContent = '✓ 已复制';
     setTimeout(() => btn.textContent = '复制', 1500);
   });
+}
+function applyCode(btn) {
+  const code = btn.closest('pre').querySelector('code').textContent;
+  vscode.postMessage({ type: 'applyCode', code });
+  btn.textContent = '✓';
+  setTimeout(() => btn.textContent = '应用', 2000);
 }
 
 // ── Utils ──
@@ -1380,6 +2389,16 @@ function addSystemHint(text) {
   scrollBottom();
   setTimeout(() => el.remove(), 4000);
 }
+
+// ── Auto-restore last session on page load ──
+(function restoreLastSession() {
+  const lastId = localStorage.getItem('vsc_last_session_id');
+  if (lastId && sessions.find(s => s.id === lastId)) {
+    loadSession(lastId);
+  } else {
+    renderDrawerList();
+  }
+})();
 </script>
 </body>
 </html>
