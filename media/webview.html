@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https:; connect-src https://api.siliconflow.cn;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https:; connect-src https://api.siliconflow.cn https://api.deepseek.com https://dashscope.aliyuncs.com https://open.bigmodel.cn https://api.moonshot.cn https://api.openai.com;">
 <title>小虾米 AI</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,6 +25,63 @@
     --green: #22c55e;
     --red: #ef4444;
     --yellow: #eab308;
+    --shadow: 0 4px 16px rgba(0,0,0,0.3);
+    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Light theme */
+  [data-theme="light"] {
+    --bg: #ffffff;
+    --bg2: #f8f9fa;
+    --bg3: #e9ecef;
+    --border: #dee2e6;
+    --accent: #6d28d9;
+    --accent2: #9333ea;
+    --accent-glow: rgba(109,40,217,0.15);
+    --text: #1a1a2e;
+    --text-dim: #495057;
+    --text-muted: #6c757d;
+    --user-bg: #ede9fe;
+    --ai-bg: #f8f9fa;
+    --code-bg: #f1f3f5;
+    --shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+
+  /* Ocean theme */
+  [data-theme="ocean"] {
+    --bg: #0c1929;
+    --bg2: #132238;
+    --bg3: #1a2d47;
+    --border: #2a4158;
+    --accent: #06b6d4;
+    --accent2: #22d3ee;
+    --accent-glow: rgba(6,182,212,0.25);
+    --text: #e0f2fe;
+    --text-dim: #7dd3fc;
+    --text-muted: #38bdf8;
+    --user-bg: #0e2a3d;
+    --ai-bg: #0a1f2e;
+    --code-bg: #061522;
+    --green: #10b981;
+    --red: #f43f5e;
+    --yellow: #fbbf24;
+  }
+
+  /* Forest theme */
+  [data-theme="forest"] {
+    --bg: #0d1912;
+    --bg2: #152117;
+    --bg3: #1e2e1f;
+    --border: #2a4a2e;
+    --accent: #10b981;
+    --accent2: #34d399;
+    --accent-glow: rgba(16,185,129,0.25);
+    --text: #ecfdf5;
+    --text-dim: #6ee7b7;
+    --text-muted: #34d399;
+    --user-bg: #0f2a17;
+    --ai-bg: #0a1f10;
+    --code-bg: #081510;
   }
 
   html, body { height: 100%; overflow: hidden; }
@@ -599,6 +656,56 @@
   }
   #hist-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 
+  #export-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 3px 7px; font-size: 11px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  #export-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  #theme-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 3px 7px; font-size: 11px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  #theme-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Theme selector popup */
+  #theme-popup {
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+    box-shadow: var(--shadow);
+    z-index: 100;
+  }
+  #theme-popup.show { display: flex; }
+  .theme-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-dim);
+    transition: var(--transition);
+  }
+  .theme-option:hover { background: var(--bg2); color: var(--text); }
+  .theme-option.active { background: var(--accent); color: white; }
+  .theme-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+  }
+
   .msg-retry {
     background: none; border: none; color: var(--text-muted);
     cursor: pointer; font-size: 12px; padding: 0 3px;
@@ -625,12 +732,20 @@
 </div>
 
 <!-- Header -->
-<div id="header">
+<div id="header" style="position: relative;">
   <div class="avatar">🐱</div>
   <div>
     <div class="title">小虾米</div>
     <div class="subtitle">AI 助手</div>
   </div>
+  <select id="provider-select" style="background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim); border-radius: 6px; padding: 3px 6px; font-size: 10px; cursor: pointer; outline: none; max-width: 100px;">
+    <option value="siliconflow">SiliconFlow</option>
+    <option value="deepseek">DeepSeek</option>
+    <option value="qwen">通义千问</option>
+    <option value="zhipu">智谱GLM</option>
+    <option value="moonshot">Moonshot</option>
+    <option value="openai">OpenAI</option>
+  </select>
   <select id="model-select">
     <option value="Qwen/Qwen3-235B-A22B">Qwen3-235B 🔥</option>
     <option value="Qwen/Qwen3-32B">Qwen3-32B</option>
@@ -642,7 +757,27 @@
     <option value="Qwen/Qwen2.5-7B-Instruct">Qwen2.5-7B</option>
   </select>
   <button id="hist-btn" title="历史记录">📋</button>
+  <button id="export-btn" title="导出对话">💾</button>
+  <button id="theme-btn" title="切换主题">🎨</button>
   <button id="new-chat-btn" title="新对话">↺</button>
+  <div id="theme-popup">
+    <div class="theme-option" data-theme="dark">
+      <div class="theme-dot" style="background: #0f0f17;"></div>
+      <span>暗黑</span>
+    </div>
+    <div class="theme-option" data-theme="light">
+      <div class="theme-dot" style="background: #ffffff;"></div>
+      <span>明亮</span>
+    </div>
+    <div class="theme-option" data-theme="ocean">
+      <div class="theme-dot" style="background: #0c1929;"></div>
+      <span>海洋</span>
+    </div>
+    <div class="theme-option" data-theme="forest">
+      <div class="theme-dot" style="background: #0d1912;"></div>
+      <span>森林</span>
+    </div>
+  </div>
 </div>
 
 <!-- History drawer -->
@@ -773,8 +908,100 @@ const SYSTEM_PROMPT = `你是小虾米，星空的专属AI助手。
 
 let apiKey = localStorage.getItem('sf_api_key') || '';
 let baseURL = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.cn';
+let currentProvider = localStorage.getItem('sf_provider') || 'siliconflow';
 let history = [];
 const MAX_TOOL_ITER = 5;
+
+// ── Multi-provider configuration ──
+const PROVIDERS = {
+  siliconflow: {
+    name: 'SiliconFlow',
+    baseURL: 'https://api.siliconflow.cn',
+    models: [
+      { id: 'Qwen/Qwen3-235B-A22B', name: 'Qwen3-235B 🔥' },
+      { id: 'Qwen/Qwen3-32B', name: 'Qwen3-32B' },
+      { id: 'deepseek-ai/DeepSeek-R1-0528', name: 'DeepSeek-R1-0528' },
+      { id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek-V3' },
+      { id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek-R1' },
+      { id: 'Qwen/Qwen2.5-VL-72B-Instruct', name: 'Qwen2.5-VL-72B' },
+      { id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen2.5-72B' },
+      { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B' }
+    ],
+    chatPath: '/v1/chat/completions'
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    baseURL: 'https://api.deepseek.com',
+    models: [
+      { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek R1 🧠' }
+    ],
+    chatPath: '/chat/completions'
+  },
+  qwen: {
+    name: '通义千问',
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode',
+    models: [
+      { id: 'qwen-turbo', name: 'Qwen Turbo ⚡' },
+      { id: 'qwen-plus', name: 'Qwen Plus' },
+      { id: 'qwen-max', name: 'Qwen Max 🚀' },
+      { id: 'qwen-max-longcontext', name: 'Qwen Max 长上下文' }
+    ],
+    chatPath: '/v1/chat/completions'
+  },
+  zhipu: {
+    name: '智谱GLM',
+    baseURL: 'https://open.bigmodel.cn/api/paas',
+    models: [
+      { id: 'glm-4', name: 'GLM-4' },
+      { id: 'glm-4-air', name: 'GLM-4 Air' },
+      { id: 'glm-4-flash', name: 'GLM-4 Flash ⚡' },
+      { id: 'glm-4-plus', name: 'GLM-4 Plus' }
+    ],
+    chatPath: '/v4/chat/completions'
+  },
+  moonshot: {
+    name: 'Moonshot',
+    baseURL: 'https://api.moonshot.cn',
+    models: [
+      { id: 'moonshot-v1-8k', name: 'Kimi 8K' },
+      { id: 'moonshot-v1-32k', name: 'Kimi 32K' },
+      { id: 'moonshot-v1-128k', name: 'Kimi 128K 📚' }
+    ],
+    chatPath: '/v1/chat/completions'
+  },
+  openai: {
+    name: 'OpenAI',
+    baseURL: 'https://api.openai.com',
+    models: [
+      { id: 'gpt-4o', name: 'GPT-4o 🎯' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo ⚡' }
+    ],
+    chatPath: '/v1/chat/completions'
+  }
+};
+
+function updateModelSelect() {
+  const provider = PROVIDERS[currentProvider];
+  const select = document.getElementById('model-select');
+  select.innerHTML = provider.models.map(m => 
+    `<option value="${m.id}">${m.name}</option>`
+  ).join('');
+  const savedModel = localStorage.getItem(`sf_model_${currentProvider}`);
+  if (savedModel && provider.models.some(m => m.id === savedModel)) {
+    select.value = savedModel;
+  }
+  localStorage.setItem('sf_provider', currentProvider);
+}
+
+document.getElementById('provider-select').value = currentProvider;
+document.getElementById('provider-select').onchange = function() {
+  currentProvider = this.value;
+  updateModelSelect();
+};
+updateModelSelect();
 window._pendingExecs = {};
 function execSkillAsync(cmd) {
   return new Promise(resolve => {
@@ -1190,8 +1417,97 @@ function openSettings() {
 
 // ── Model ──
 const modelSelect = document.getElementById('model-select');
-modelSelect.value = localStorage.getItem('sf_model') || 'deepseek-ai/DeepSeek-V3';
-modelSelect.onchange = () => localStorage.setItem('sf_model', modelSelect.value);
+modelSelect.onchange = () => {
+  localStorage.setItem(`sf_model_${currentProvider}`, modelSelect.value);
+};
+
+// ── Theme ──
+const themes = ['dark', 'light', 'ocean', 'forest'];
+let currentTheme = localStorage.getItem('sf_theme') || 'dark';
+document.documentElement.setAttribute('data-theme', currentTheme);
+
+const themeBtn = document.getElementById('theme-btn');
+const themePopup = document.getElementById('theme-popup');
+
+themeBtn.onclick = (e) => {
+  e.stopPropagation();
+  themePopup.classList.toggle('show');
+  updateThemeOptions();
+};
+
+function updateThemeOptions() {
+  themePopup.querySelectorAll('.theme-option').forEach(el => {
+    el.classList.toggle('active', el.dataset.theme === currentTheme);
+  });
+}
+
+themePopup.querySelectorAll('.theme-option').forEach(el => {
+  el.onclick = () => {
+    currentTheme = el.dataset.theme;
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('sf_theme', currentTheme);
+    themePopup.classList.remove('show');
+    updateThemeOptions();
+  };
+});
+
+document.addEventListener('click', (e) => {
+  if (!themePopup.contains(e.target) && e.target !== themeBtn) {
+    themePopup.classList.remove('show');
+  }
+});
+
+updateThemeOptions();
+
+// ── Export ──
+document.getElementById('export-btn').onclick = () => {
+  const sessions = JSON.parse(localStorage.getItem('vsc_sessions') || '[]');
+  const currentId = localStorage.getItem('vsc_last_session_id');
+  
+  // 导出格式选择
+  const format = prompt('导出格式：输入 1 导出Markdown，输入 2 导出JSON', '1');
+  
+  if (format === '1') {
+    // Markdown格式
+    let md = '# 小虾米AI对话记录\n\n';
+    md += `导出时间：${new Date().toLocaleString('zh-CN')}\n\n---\n\n`;
+    
+    sessions.forEach((session, idx) => {
+      md += `## 对话 ${idx + 1}\n\n`;
+      session.messages?.forEach(msg => {
+        const role = msg.role === 'user' ? '👤 用户' : '🐱 小虾米';
+        const content = Array.isArray(msg.content) 
+          ? msg.content.map(c => c.text || '').join('\n')
+          : msg.content;
+        md += `**${role}：**\n\n${content}\n\n`;
+      });
+      md += '---\n\n';
+    });
+    
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `小虾米对话_${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ 对话已导出为Markdown');
+  } else if (format === '2') {
+    // JSON格式
+    const json = {
+      exportTime: new Date().toISOString(),
+      sessions: sessions
+    };
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `小虾米对话_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ 对话已导出为JSON');
+  }
+};
 
 // ── New chat ──
 document.getElementById('new-chat-btn').onclick = startNewChat;
@@ -1224,13 +1540,20 @@ function showWelcome() {
 // ── Slash commands ──
 const SLASH_COMMANDS = [
   { cmd: '/搜索', icon: '🌐', desc: '联网搜索实时信息', prompt: '/搜索 ' },
-  { cmd: '/解释', icon: '📖', desc: '解释代码作用和逻辑', prompt: '请解释这段代码的作用和逻辑' },
+  { cmd: '/解释', icon: '📖', desc: '解释代码作用和逻辑', prompt: '请详细解释这段代码的作用和逻辑' },
   { cmd: '/修复', icon: '🐛', desc: '找出并修复 Bug', prompt: '帮我找出并修复代码中的 bug，并解释原因' },
   { cmd: '/优化', icon: '⚡', desc: '优化代码性能和质量', prompt: '帮我优化这段代码，提升性能和可读性' },
+  { cmd: '/重构', icon: '🔨', desc: '重构代码结构', prompt: '帮我重构这段代码，改善代码结构和设计模式' },
   { cmd: '/测试', icon: '🧪', desc: '生成单元测试', prompt: '帮我为这段代码生成完整的单元测试' },
   { cmd: '/审查', icon: '🔍', desc: '代码审查', prompt: '帮我审查这段代码，指出潜在问题和改进建议' },
+  { cmd: '/安全', icon: '🔒', desc: '安全检查', prompt: '帮我检查这段代码的安全漏洞和风险' },
+  { cmd: '/性能', icon: '📈', desc: '性能分析', prompt: '分析这段代码的性能瓶颈并给出优化建议' },
   { cmd: '/文档', icon: '📝', desc: '生成注释和文档', prompt: '帮我为这段代码生成详细的注释和文档说明' },
   { cmd: '/翻译', icon: '🌐', desc: '翻译注释为中文', prompt: '把代码中的英文注释全部翻译成中文' },
+  { cmd: '/补全', icon: '✨', desc: '智能补全代码', prompt: '根据上下文帮我补全这段代码' },
+  { cmd: '/类型', icon: '🏷️', desc: '添加类型定义', prompt: '帮我为这段代码添加TypeScript类型定义' },
+  { cmd: '/API', icon: '🔌', desc: '生成API文档', prompt: '为这个函数生成API文档和使用示例' },
+  { cmd: '/错误处理', icon: '⚠️', desc: '添加错误处理', prompt: '为这段代码添加完善的错误处理机制' },
   { cmd: '/查看记录', icon: '📚', desc: '查看自动记录的经验', prompt: '/查看记录' },
   { cmd: '/画图', icon: '🎨', desc: 'AI 生成图片（需 Gemini Key）', prompt: '/画图 ' },
   { cmd: '/找素材', icon: '🎯', desc: '搜索广告素材（需AdMapix Key）', prompt: '/找素材 ' },
@@ -2091,6 +2414,9 @@ async function streamResponse(el, _toolIteration = 0) {
 
   try {
     const model = modelSelect.value;
+    const provider = PROVIDERS[currentProvider];
+    const apiURL = provider.baseURL + provider.chatPath;
+    
     // 按 token 估算截断历史（中文约2字/token，英文约4字/token，取平均3字/token）
     const MAX_HIST_TOKENS = 60000;
     let histTokens = 0, histStart = history.length;
@@ -2113,7 +2439,7 @@ async function streamResponse(el, _toolIteration = 0) {
       temperature: 0.7,
     };
 
-    const res = await fetch(`${baseURL}/v1/chat/completions`, {
+    const res = await fetch(apiURL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
