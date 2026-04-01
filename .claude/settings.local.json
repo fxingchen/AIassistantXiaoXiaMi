@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:clawhub.ai)",
+      "Read(//e/AI/OpenClaw技能/nano-banana-pro-1.0.1/**)",
+      "Read(//c/Users/xingkong/Downloads/**)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\(''''name''''\\), d.get\\(''''displayName''''\\), d.get\\(''''publisher''''\\), d.get\\(''''description'''',''''''''\\)[:100]\\)\")",
+      "Bash(code --install-extension \"C:/Users/xingkong/Downloads/Microsoft.VisualStudio.Services.VSIXPackage\")",
+      "Read(//e/AI/OpenClaw技能/新建文件夹/**)",
+      "Bash(npm install:*)",
+      "Read(//c/Users/xingkong/.claude/**)",
+      "Bash(cp -r \"E:/AI/OpenClaw技能/新建文件夹/baidu-search-1.1.3\" \"$USERPROFILE/.codex/skills/baidu-search\")",
+      "Bash(cp -r \"E:/AI/OpenClaw技能/新建文件夹/imap-smtp-email-0.0.10\" \"$USERPROFILE/.codex/skills/imap-smtp-email\")",
+      "Bash(grep -n \"^const SYSTEM_PROMPT\\\\|能力边界\\\\|做不到的事情\\\\|\\\\`;\" \"c:/Users/xingkong/.vscode/extensions/xingkong.claude-chat-0.0.1/media/webview.html\")",
+      "Bash(node -e \"require\\(''''./extension.js''''\\)\")",
+      "Bash(node --input-type=module --eval \"import {readFileSync} from ''fs''; const src=readFileSync\\(''c:/Users/xingkong/.vscode/extensions/xingkong.claude-chat-0.0.1/extension.js'',''utf8''\\); new Function\\(src\\); console.log\\(''OK''\\);\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\xingkong\\.codex\\skills\\nano-banana-pro\\scripts",
+      "C:\\Users\\xingkong\\.claude"
+    ]
+  }
+}

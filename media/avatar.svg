@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 背景 -->
+  <circle cx="50" cy="50" r="48" fill="url(#bgGrad)"/>
+  
+  <!-- 猫耳朵 -->
+  <path d="M 22 42 L 28 12 L 44 38 Z" fill="#0f0f23"/>
+  <path d="M 78 42 L 72 12 L 56 38 Z" fill="#0f0f23"/>
+  <!-- 耳朵内部粉色 -->
+  <path d="M 27 38 L 31 18 L 40 36 Z" fill="#ec4899" opacity="0.3"/>
+  <path d="M 73 38 L 69 18 L 60 36 Z" fill="#ec4899" opacity="0.3"/>
+  
+  <!-- 猫脸 -->
+  <ellipse cx="50" cy="55" rx="32" ry="28" fill="#0f0f23"/>
+  
+  <!-- 眼睛容器 -->
+  <g id="eyes">
+    <!-- 左眼 -->
+    <ellipse cx="38" cy="52" rx="5" ry="6" fill="#a855f7">
+      <animate attributeName="ry" values="6;1;6" dur="3s" repeatCount="indefinite" begin="0s"/>
+    </ellipse>
+    <circle cx="39" cy="50" r="2" fill="#fff" opacity="0.9">
+      <animate attributeName="opacity" values="0.9;0;0.9" dur="3s" repeatCount="indefinite" begin="0s"/>
+    </circle>
+    
+    <!-- 右眼 -->
+    <ellipse cx="62" cy="52" rx="5" ry="6" fill="#a855f7">
+      <animate attributeName="ry" values="6;1;6" dur="3s" repeatCount="indefinite" begin="0s"/>
+    </ellipse>
+    <circle cx="63" cy="50" r="2" fill="#fff" opacity="0.9">
+      <animate attributeName="opacity" values="0.9;0;0.9" dur="3s" repeatCount="indefinite" begin="0s"/>
+    </circle>
+  </g>
+  
+  <!-- 鼻子 -->
+  <path d="M 47 62 L 50 66 L 53 62 Z" fill="#ec4899"/>
+  
+  <!-- 嘴巴 -->
+  <path d="M 50 66 Q 44 71 40 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M 50 66 Q 56 71 60 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  
+  <!-- 胡须 -->
+  <g stroke="#0f0f23" stroke-width="0.8" opacity="0.5">
+    <line x1="28" y1="60" x2="12" y2="58"/>
+    <line x1="28" y1="64" x2="12" y2="65"/>
+    <line x1="28" y1="68" x2="12" y2="72"/>
+    <line x1="72" y1="60" x2="88" y2="58"/>
+    <line x1="72" y1="64" x2="88" y2="65"/>
+    <line x1="72" y1="68" x2="88" y2="72"/>
+  </g>
+  
+  <!-- 腮红 -->
+  <circle cx="30" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+  <circle cx="70" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+</svg>

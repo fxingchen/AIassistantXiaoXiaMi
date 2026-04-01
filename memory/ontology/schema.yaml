@@ -1,0 +1,31 @@
+types:
+  Person:
+    required: [name]
+  Project:
+    required: [name, status]
+    status_enum: [planning, active, paused, done]
+  Task:
+    required: [title, status]
+    status_enum: [open, in_progress, blocked, done]
+  Event:
+    required: [title, start]
+  Note:
+    required: [content]
+  Organization:
+    required: [name]
+
+relations:
+  has_owner:
+    from_types: [Project, Task]
+    to_types: [Person]
+    cardinality: many_to_one
+  has_task:
+    from_types: [Project]
+    to_types: [Task]
+  blocks:
+    from_types: [Task]
+    to_types: [Task]
+    acyclic: true
+  member_of:
+    from_types: [Person]
+    to_types: [Organization]

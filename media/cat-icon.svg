@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+  <!-- 猫咪轮廓 -->
+  <path d="M12 2C7.58 2 4 5.58 4 10c0 2.5 1.5 4.5 3 6l1 2h8l1-2c1.5-1.5 3-3.5 3-6 0-4.42-3.58-8-8-8z" fill="#a855f7"/>
+  <!-- 左耳 -->
+  <path d="M6 8L4 2l4 3" fill="#a855f7"/>
+  <!-- 右耳 -->
+  <path d="M18 8l2-6-4 3" fill="#a855f7"/>
+  <!-- 左眼 -->
+  <circle cx="9" cy="10" r="1.5" fill="#fff"/>
+  <!-- 右眼 -->
+  <circle cx="15" cy="10" r="1.5" fill="#fff"/>
+  <!-- 鼻子 -->
+  <path d="M12 12l-1 2h2l-1-2z" fill="#ec4899"/>
+  <!-- 嘴巴 -->
+  <path d="M10 14c0 0 2 1 4 0" stroke="#0f0f23" stroke-width="0.8"/>
+  <!-- 胡须 -->
+  <line x1="8" y1="12" x2="2" y2="11" stroke="#0f0f23" stroke-width="0.5"/>
+  <line x1="8" y1="13" x2="2" y2="14" stroke="#0f0f23" stroke-width="0.5"/>
+  <line x1="16" y1="12" x2="22" y2="11" stroke="#0f0f23" stroke-width="0.5"/>
+  <line x1="16" y1="13" x2="22" y2="14" stroke="#0f0f23" stroke-width="0.5"/>
+</svg>
