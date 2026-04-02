@@ -2637,7 +2637,7 @@ function addUserMessage(text, images, ctx, aCtx) {
 
   const msgIndex = history.length;
   div.innerHTML = `
-    <div class="msg-avatar">${CAT_AVATAR_STATIC}</div>
+    <div class="msg-avatar">⭐</div>
     <div class="msg-content">
       <div class="msg-bubble">${bubble}</div>
       <div class="msg-meta"><div class="msg-time">${timeStr()}</div><button class="msg-retry" title="重新发送" onclick="retryMessage(${msgIndex})">↺</button></div>
