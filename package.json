@@ -4,6 +4,7 @@
   "description": "小虾米 AI 聊天助手：在侧边栏与 AI 对话，支持自动附加当前文件/选中代码、粘贴截图、拖入代码文件、斜杠快捷指令。需要 SiliconFlow API Key。",
   "version": "0.0.2",
   "publisher": "xingkong",
+  "icon": "media/xiaoximi.png",
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Other"],
   "activationEvents": ["onStartupFinished"],

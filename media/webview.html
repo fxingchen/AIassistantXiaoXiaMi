@@ -328,7 +328,8 @@
     text-align: center; padding: 30px 16px;
     animation: fadeIn 0.4s ease;
   }
-  #welcome .w-icon { font-size: 40px; margin-bottom: 8px; }
+  #welcome .w-icon { width: 60px; height: 60px; margin: 0 auto 8px; }
+  #welcome .w-icon svg { width: 100%; height: 100%; }
   #welcome h2 { font-size: 15px; color: var(--text); margin-bottom: 4px; }
   #welcome p { font-size: 11px; color: var(--text-dim); margin-bottom: 16px; }
   #welcome .shortcuts {
@@ -796,7 +797,7 @@
 <!-- Messages -->
 <div id="messages">
   <div id="welcome">
-    <div class="w-icon">🐱</div>
+    <div class="w-icon" id="welcome-icon"></div>
     <h2>你好，星空主人喵～</h2>
     <p>我是小虾米，有什么可以帮你的呢？🐱喵~</p>
     <div class="shortcuts">
@@ -892,7 +893,43 @@ const CAT_AVATAR_SVG = `
   <circle cx="70" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
 </svg>`;
 
-// ── 静态猫咪 SVG（用于消息中，不带 ID）─
+// ── Welcome 区域的猫咪 SVG（带独立 ID）─
+const CAT_WELCOME_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradWelcome" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#bgGradWelcome)"/>
+  <path d="M 22 42 L 28 12 L 44 38 Z" fill="#0f0f23"/>
+  <path d="M 78 42 L 72 12 L 56 38 Z" fill="#0f0f23"/>
+  <path d="M 27 38 L 31 18 L 40 36 Z" fill="#ec4899" opacity="0.3"/>
+  <path d="M 73 38 L 69 18 L 60 36 Z" fill="#ec4899" opacity="0.3"/>
+  <ellipse cx="50" cy="55" rx="32" ry="28" fill="#0f0f23"/>
+  <g>
+    <ellipse id="welcomeEye1" cx="38" cy="52" rx="5" ry="6" fill="#a855f7"/>
+    <circle id="welcomeHighlight1" cx="39" cy="50" r="2" fill="#fff" opacity="0.9"/>
+    <ellipse id="welcomeEye2" cx="62" cy="52" rx="5" ry="6" fill="#a855f7"/>
+    <circle id="welcomeHighlight2" cx="63" cy="50" r="2" fill="#fff" opacity="0.9"/>
+  </g>
+  <path d="M 47 62 L 50 66 L 53 62 Z" fill="#ec4899"/>
+  <path d="M 50 66 Q 44 71 40 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M 50 66 Q 56 71 60 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <g stroke="#0f0f23" stroke-width="0.8" opacity="0.5">
+    <line x1="28" y1="60" x2="12" y2="58"/>
+    <line x1="28" y1="64" x2="12" y2="65"/>
+    <line x1="28" y1="68" x2="12" y2="72"/>
+    <line x1="72" y1="60" x2="88" y2="58"/>
+    <line x1="72" y1="64" x2="88" y2="65"/>
+    <line x1="72" y1="68" x2="88" y2="72"/>
+  </g>
+  <circle cx="30" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+  <circle cx="70" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+</svg>`;
+
+// ── 带眨眼动画的猫咪 SVG（用于消息中，使用 SMIL 动画）─
 const CAT_AVATAR_STATIC = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
   <defs>
@@ -907,10 +944,18 @@ const CAT_AVATAR_STATIC = `
   <path d="M 27 38 L 31 18 L 40 36 Z" fill="#ec4899" opacity="0.3"/>
   <path d="M 73 38 L 69 18 L 60 36 Z" fill="#ec4899" opacity="0.3"/>
   <ellipse cx="50" cy="55" rx="32" ry="28" fill="#0f0f23"/>
-  <ellipse cx="38" cy="52" rx="5" ry="6" fill="#a855f7"/>
-  <circle cx="39" cy="50" r="2" fill="#fff" opacity="0.9"/>
-  <ellipse cx="62" cy="52" rx="5" ry="6" fill="#a855f7"/>
-  <circle cx="63" cy="50" r="2" fill="#fff" opacity="0.9"/>
+  <ellipse cx="38" cy="52" rx="5" ry="6" fill="#a855f7">
+    <animate attributeName="ry" values="6;1;6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <circle cx="39" cy="50" r="2" fill="#fff" opacity="0.9">
+    <animate attributeName="opacity" values="0.9;0;0.9" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <ellipse cx="62" cy="52" rx="5" ry="6" fill="#a855f7">
+    <animate attributeName="ry" values="6;1;6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <circle cx="63" cy="50" r="2" fill="#fff" opacity="0.9">
+    <animate attributeName="opacity" values="0.9;0;0.9" dur="3s" repeatCount="indefinite"/>
+  </circle>
   <path d="M 47 62 L 50 66 L 53 62 Z" fill="#ec4899"/>
   <path d="M 50 66 Q 44 71 40 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
   <path d="M 50 66 Q 56 71 60 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
@@ -947,6 +992,36 @@ function blinkEyes() {
   }, 150);
 }
 setTimeout(blinkEyes, 1000);
+
+// ── Welcome 区域眨眼动画 ──
+function blinkWelcomeEyes() {
+  const eye1 = document.getElementById('welcomeEye1');
+  const eye2 = document.getElementById('welcomeEye2');
+  const highlight1 = document.getElementById('welcomeHighlight1');
+  const highlight2 = document.getElementById('welcomeHighlight2');
+  if (!eye1) return;
+  eye1.setAttribute('ry', '1');
+  eye2.setAttribute('ry', '1');
+  highlight1.setAttribute('opacity', '0');
+  highlight2.setAttribute('opacity', '0');
+  setTimeout(() => {
+    eye1.setAttribute('ry', '6');
+    eye2.setAttribute('ry', '6');
+    highlight1.setAttribute('opacity', '0.9');
+    highlight2.setAttribute('opacity', '0.9');
+    const nextBlink = 2000 + Math.random() * 2000;
+    setTimeout(blinkWelcomeEyes, nextBlink);
+  }, 150);
+}
+
+// ── 初始化 Welcome 图标 ──
+function initWelcomeIcon() {
+  const icon = document.getElementById('welcome-icon');
+  if (icon) {
+    icon.innerHTML = CAT_WELCOME_SVG;
+    setTimeout(blinkWelcomeEyes, 1000);
+  }
+}
 
 // ── State ──
 const SYSTEM_PROMPT = `你是小虾米，星空的专属AI助手。
@@ -1615,7 +1690,7 @@ function showWelcome() {
   const msgs = document.getElementById('messages');
   msgs.innerHTML = `
   <div id="welcome">
-    <div class="w-icon">🐱</div>
+    <div class="w-icon" id="welcome-icon"></div>
     <h2>你好，星空主人喵～</h2>
     <p>我是小虾米，有什么可以帮你的呢？🐱喵~</p>
     <div class="shortcuts">
@@ -1634,6 +1709,7 @@ function showWelcome() {
       </div>
     </div>
   </div>`;
+  initWelcomeIcon();
 }
 
 // ── Slash commands ──
@@ -2830,6 +2906,9 @@ function addSystemHint(text) {
 
 // ── 初始化 Header 头像 ──
 document.getElementById('header-avatar').innerHTML = CAT_AVATAR_SVG;
+
+// ── 初始化 Welcome 图标 ──
+initWelcomeIcon();
 </script>
 </body>
 </html>
