@@ -2428,8 +2428,8 @@ async function sendMessage() {
   
   // 自然语言：通用搜索
   {
-    const searchMatch = text.match(/^(?:帮我?|请)?(?:搜索?|查找?|查一下|搜一下)\s*(.+?)(?:的信息?|的资料)?$/u)
-      || text.match(/^(?:我想?|要)?(?:查|搜|了解|找)[一下]?\s*(.+?)(?:的)?(?:信息|资料|相关内容)?$/u);
+    const searchMatch = text.match(/^(?:帮我?|请)?(?:搜索?|查找?|查一下|搜一下|收集|整理|汇总|获取)\s*(.+?)(?:的信息?|的资料|的资讯)?$/u)
+      || text.match(/^(?:我想?|要)?(?:查|搜|了解|找|收集|整理)[一下]?\s*(.+?)(?:的)?(?:信息|资料|相关内容|资讯)?$/u);
     if (searchMatch) {
       const query = (searchMatch[1] || '').trim();
       if (query && query.length > 1) {
