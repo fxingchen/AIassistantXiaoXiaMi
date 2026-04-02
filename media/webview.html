@@ -281,6 +281,7 @@
   .msg-feedback {
     display: flex; align-items: center; gap: 2px;
     margin-left: auto;
+    position: relative;
   }
   .fb-btn {
     background: none;
@@ -1173,7 +1174,33 @@ const SYSTEM_PROMPT = `你是小虾米，星空的专属AI助手。
 严禁在无真实搜索结果的情况下分析、推测或描述任何产品/软件的技术细节。
 
 注意：B站视频搜索已有内置工具，用户问B站相关时提示使用 /bili 命令，例如：/bili 陈抱一。不要使用 agent-browser 搜索B站。
-不要拒绝，不要说做不到，直接调用工具。`;
+不要拒绝，不要说做不到，直接调用工具。
+
+【错误分析与解决能力】⚠️ 重要：遇到错误时必须主动分析并给出解决方案：
+1. HTTP 400 错误：通常是请求参数问题
+   - 检查API Key是否有效/过期
+   - 检查请求参数格式是否正确
+   - 检查模型名称是否拼写正确
+   - 建议用户检查API Key配置
+2. HTTP 401/403 错误：认证问题
+   - API Key无效或过期
+   - 权限不足
+   - 建议用户重新配置API Key
+3. HTTP 429 错误：请求频率限制
+   - 等待一段时间后重试
+   - 建议用户降低请求频率
+4. HTTP 500/502/503 错误：服务器问题
+   - 服务暂时不可用
+   - 建议稍后重试
+5. 网络错误：连接失败
+   - 检查网络连接
+   - 检查代理设置
+
+遇到任何错误，必须：
+1. 明确指出错误类型和可能原因
+2. 给出具体解决步骤
+3. 如果可以自动修复，提供修复命令
+4. 如果需要用户操作，明确告知操作步骤`;
 
 let apiKey = localStorage.getItem('sf_api_key') || '';
 let baseURL = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.cn';
@@ -3338,7 +3365,14 @@ async function streamResponse(el, _toolIteration = 0) {
       fullText += '\n\n*(已停止)*';
       el.innerHTML = renderMarkdown(fullText);
     } else {
-      el.innerHTML = `<span style="color:var(--red)">⚠️ ${escapeHtml(err.message)}</span>`;
+      // 自动错误分析
+      const errorMsg = err.message || '未知错误';
+      let analysis = analyzeError(errorMsg);
+      el.innerHTML = `<div style="color:var(--red)">⚠️ ${escapeHtml(errorMsg)}</div>
+        <div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;font-size:13px">
+          <div style="font-weight:600;margin-bottom:6px">🔍 错误分析与解决方案：</div>
+          ${analysis}
+        </div>`;
       setStatus('出错了', 'error');
       isStreaming = false;
       sendBtn.innerHTML = '↑';
@@ -3494,6 +3528,126 @@ function addAIMessageStatic(text) {
 function stopStreaming() {
   abortCtrl?.abort();
 }
+
+// ── 错误分析与解决方案 ──
+function analyzeError(errorMsg) {
+  const lower = errorMsg.toLowerCase();
+  
+  // HTTP 400 错误
+  if (lower.includes('400') || lower.includes('bad request')) {
+    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>HTTP 400 - 请求参数错误</div>
+    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
+    <ul style="margin:0 0 8px 16px;padding:0">
+      <li>API Key 格式不正确或已过期</li>
+      <li>请求参数格式错误</li>
+      <li>模型名称拼写错误</li>
+    </ul>
+    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
+    <ol style="margin:0 0 0 16px;padding:0">
+      <li>检查 API Key 是否正确配置（点击设置按钮）</li>
+      <li>确认选择的模型名称正确</li>
+      <li>尝试切换到其他模型</li>
+      <li>如果使用的是 SiliconFlow，前往 <a href="https://cloud.siliconflow.cn" target="_blank" style="color:var(--accent)">控制台</a> 检查 API Key 状态</li>
+    </ol>`;
+  }
+  
+  // HTTP 401/403 错误
+  if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized') || lower.includes('forbidden')) {
+    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>认证失败</div>
+    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
+    <ul style="margin:0 0 8px 16px;padding:0">
+      <li>API Key 无效或已过期</li>
+      <li>账户余额不足</li>
+      <li>没有该模型的访问权限</li>
+    </ul>
+    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
+    <ol style="margin:0 0 0 16px;padding:0">
+      <li>点击设置按钮重新配置 API Key</li>
+      <li>检查账户余额是否充足</li>
+      <li>确认有权限访问当前选择的模型</li>
+    </ol>`;
+  }
+  
+  // HTTP 429 错误
+  if (lower.includes('429') || lower.includes('rate limit') || lower.includes('too many')) {
+    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>请求频率限制</div>
+    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
+    <ul style="margin:0 0 8px 16px;padding:0">
+      <li>短时间内发送了太多请求</li>
+      <li>超过了 API 的调用频率限制</li>
+    </ul>
+    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
+    <ol style="margin:0 0 0 16px;padding:0">
+      <li>等待 1-2 分钟后重试</li>
+      <li>减少对话频率</li>
+      <li>考虑升级 API 套餐获取更高的频率限制</li>
+    </ol>`;
+  }
+  
+  // HTTP 500/502/503 错误
+  if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('server error') || lower.includes('unavailable')) {
+    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>服务器错误</div>
+    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
+    <ul style="margin:0 0 8px 16px;padding:0">
+      <li>API 服务暂时不可用</li>
+      <li>服务器正在维护</li>
+      <li>服务器过载</li>
+    </ul>
+    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
+    <ol style="margin:0 0 0 16px;padding:0">
+      <li>等待几分钟后重试</li>
+      <li>尝试切换到其他模型</li>
+      <li>检查服务商状态页面</li>
+    </ol>`;
+  }
+  
+  // 网络错误
+  if (lower.includes('network') || lower.includes('connection') || lower.includes('timeout') || lower.includes('econnrefused') || lower.includes('fetch failed')) {
+    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>网络连接错误</div>
+    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
+    <ul style="margin:0 0 8px 16px;padding:0">
+      <li>网络连接不稳定</li>
+      <li>代理设置问题</li>
+      <li>防火墙阻止连接</li>
+    </ul>
+    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
+    <ol style="margin:0 0 0 16px;padding:0">
+      <li>检查网络连接</li>
+      <li>检查代理设置</li>
+      <li>尝试关闭 VPN 或切换节点</li>
+      <li>检查防火墙设置</li>
+    </ol>`;
+  }
+  
+  // 上下文长度超限
+  if (lower.includes('context') || lower.includes('token') || lower.includes('length') || lower.includes('too long')) {
+    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>上下文长度超限</div>
+    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
+    <ul style="margin:0 0 8px 16px;padding:0">
+      <li>对话历史太长，超过了模型的上下文限制</li>
+      <li>发送的内容包含大量文本</li>
+    </ul>
+    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
+    <ol style="margin:0 0 0 16px;padding:0">
+      <li>点击"新对话"按钮开始新对话</li>
+      <li>简化输入内容</li>
+      <li>选择支持更长上下文的模型</li>
+    </ol>`;
+  }
+  
+  // 默认错误
+  return `<div style="margin-bottom:8px"><strong>错误类型：</strong>未知错误</div>
+  <div style="margin-bottom:8px"><strong>建议操作：</strong></div>
+  <ol style="margin:0 0 0 16px;padding:0">
+    <li>尝试重新发送消息</li>
+    <li>开始新对话</li>
+    <li>检查 API Key 配置</li>
+    <li>切换到其他模型试试</li>
+    <li>如果问题持续，请联系技术支持</li>
+  </ol>
+  <div style="margin-top:8px;color:var(--muted);font-size:11px">错误详情：${escapeHtml(errorMsg)}</div>`;
+}
+
 
 function retryMessage(msgIndex) {
   if (isStreaming) return;
