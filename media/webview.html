@@ -278,6 +278,31 @@
     padding: 0 4px;
   }
 
+  .msg-feedback {
+    display: flex; align-items: center; gap: 2px;
+    margin-left: auto;
+  }
+  .fb-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.4;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .fb-btn:hover {
+    opacity: 1;
+    background: var(--bg3);
+  }
+  .fb-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .fb-btn.fb-good:hover { color: var(--green); }
+  .fb-btn.fb-bad:hover { color: var(--red); }
+
   .msg-time {
     font-size: 10px; color: var(--text-muted);
   }
@@ -1241,6 +1266,205 @@ function buildLearningsPrompt() {
   return '\n\n【经验记录（供参考）】\n' +
     learnings.slice(0, 10).map((l, i) => `${i + 1}. [${l.type}] ${l.summary}`).join('\n');
 }
+
+// ── Self-Evolution System (自我进化系统) ──
+const EVOLUTION_KEY = 'vsc_evolution';
+
+function getEvolutionData() {
+  try {
+    return JSON.parse(localStorage.getItem(EVOLUTION_KEY) || JSON.stringify({
+      errors: [],           // 错误记录
+      corrections: [],      // 用户纠正记录
+      goodPatterns: [],     // 好的回答模式
+      userPreferences: [],  // 用户偏好
+      knowledgeGaps: [],    // 知识盲区
+      stats: { totalChats: 0, goodResponses: 0, badResponses: 0 }
+    }));
+  } catch {
+    return { errors: [], corrections: [], goodPatterns: [], userPreferences: [], knowledgeGaps: [], stats: { totalChats: 0, goodResponses: 0, badResponses: 0 } };
+  }
+}
+
+function saveEvolutionData(data) {
+  try { localStorage.setItem(EVOLUTION_KEY, JSON.stringify(data)); } catch {}
+}
+
+// 记录错误
+function recordError(type, context, userFeedback) {
+  const data = getEvolutionData();
+  data.errors.unshift({
+    type,           // 错误类型：hallucination, wrong_command, misunderstanding, etc.
+    context,        // 错误上下文
+    userFeedback,   // 用户反馈
+    time: Date.now(),
+    count: 1
+  });
+  // 去重：相同错误合并计数
+  const unique = [];
+  data.errors.forEach(e => {
+    const existing = unique.find(u => u.type === e.type && u.context === e.context);
+    if (existing) existing.count++;
+    else unique.push(e);
+  });
+  data.errors = unique.slice(0, 50);
+  data.stats.badResponses++;
+  saveEvolutionData(data);
+}
+
+// 记录用户纠正
+function recordCorrection(original, corrected) {
+  const data = getEvolutionData();
+  data.corrections.unshift({
+    original,       // 原始错误内容
+    corrected,      // 用户纠正后的内容
+    time: Date.now()
+  });
+  data.corrections = data.corrections.slice(0, 50);
+  saveEvolutionData(data);
+  
+  // 同时作为学习记录
+  saveLearning({
+    type: '用户纠正',
+    summary: `"${original.slice(0,30)}..." → "${corrected.slice(0,30)}..."`,
+    time: Date.now()
+  });
+}
+
+// 记录好的回答模式
+function recordGoodPattern(pattern, context) {
+  const data = getEvolutionData();
+  data.goodPatterns.unshift({
+    pattern,        // 好的回答模式
+    context,        // 适用上下文
+    time: Date.now(),
+    uses: 1
+  });
+  // 去重合并
+  const unique = [];
+  data.goodPatterns.forEach(p => {
+    const existing = unique.find(u => u.pattern === p.pattern);
+    if (existing) existing.uses++;
+    else unique.push(p);
+  });
+  data.goodPatterns = unique.slice(0, 30);
+  data.stats.goodResponses++;
+  saveEvolutionData(data);
+}
+
+// 记录用户偏好
+function recordUserPreference(category, preference) {
+  const data = getEvolutionData();
+  // 移除同类旧偏好
+  data.userPreferences = data.userPreferences.filter(p => p.category !== category);
+  data.userPreferences.unshift({
+    category,       // 偏好类别：style, format, language, etc.
+    preference,     // 偏好内容
+    time: Date.now()
+  });
+  data.userPreferences = data.userPreferences.slice(0, 20);
+  saveEvolutionData(data);
+}
+
+// 检测知识盲区
+function detectKnowledgeGap(topic, question) {
+  const data = getEvolutionData();
+  data.knowledgeGaps.unshift({
+    topic,          // 未知主题
+    question,       // 用户问题
+    time: Date.now()
+  });
+  data.knowledgeGaps = data.knowledgeGaps.slice(0, 20);
+  saveEvolutionData(data);
+}
+
+// 生成进化提示词（注入到系统提示词中）
+function buildEvolutionPrompt() {
+  const data = getEvolutionData();
+  const parts = [];
+  
+  // 用户偏好
+  if (data.userPreferences.length > 0) {
+    parts.push('\n\n【用户已知偏好】\n' + 
+      data.userPreferences.slice(0, 5).map(p => `- [${p.category}] ${p.preference}`).join('\n'));
+  }
+  
+  // 需要避免的错误
+  if (data.errors.length > 0) {
+    const recentErrors = data.errors.filter(e => Date.now() - e.time < 7 * 24 * 3600 * 1000).slice(0, 5);
+    if (recentErrors.length > 0) {
+      parts.push('\n\n【需避免的错误】\n' + 
+        recentErrors.map(e => `- [${e.type}] ${e.context}（用户反馈：${e.userFeedback}）`).join('\n'));
+    }
+  }
+  
+  // 用户纠正历史
+  if (data.corrections.length > 0) {
+    const recentCorrections = data.corrections.slice(0, 3);
+    if (recentCorrections.length > 0) {
+      parts.push('\n\n【用户纠正历史】\n' + 
+        recentCorrections.map(c => `- 原文："${c.original.slice(0, 40)}..." → 纠正为："${c.corrected.slice(0, 40)}..."`).join('\n'));
+    }
+  }
+  
+  // 好的回答模式
+  if (data.goodPatterns.length > 0) {
+    const topPatterns = data.goodPatterns.sort((a, b) => b.uses - a.uses).slice(0, 3);
+    if (topPatterns.length > 0) {
+      parts.push('\n\n【高效回答模式】\n' + 
+        topPatterns.map(p => `- ${p.pattern}（已用${p.uses}次）`).join('\n'));
+    }
+  }
+  
+  // 知识盲区提醒
+  if (data.knowledgeGaps.length > 0) {
+    const recentGaps = data.knowledgeGaps.filter(g => Date.now() - g.time < 3 * 24 * 3600 * 1000).slice(0, 3);
+    if (recentGaps.length > 0) {
+      parts.push('\n\n【知识盲区提醒】\n以下主题你可能需要先搜索：\n' + 
+        recentGaps.map(g => `- ${g.topic}（问题：${g.question.slice(0, 30)}...）`).join('\n'));
+    }
+  }
+  
+  return parts.join('');
+}
+
+// 分析对话，自动提取学习点
+function analyzeConversation(userMsg, aiMsg) {
+  // 检测用户不满信号
+  const dissatisfactionSignals = ['不对', '错了', '不是', '不对吧', '改一下', '重来', '不好', '差评'];
+  const hasDissatisfaction = dissatisfactionSignals.some(s => userMsg.includes(s));
+  
+  if (hasDissatisfaction) {
+    // 尝试识别错误类型
+    if (userMsg.includes('不是') || userMsg.includes('不对')) {
+      recordError('misunderstanding', aiMsg.slice(0, 100), userMsg);
+    }
+  }
+  
+  // 检测用户纠正
+  const correctionPatterns = [
+    /应该是[「"'](.+?)["」']/,
+    /改为[「"'](.+?)["」']/,
+    /正确[的是]+[「"'](.+?)["」']/,
+    /其实[是为]+(.+)/
+  ];
+  for (const pattern of correctionPatterns) {
+    const match = userMsg.match(pattern);
+    if (match) {
+      recordCorrection(aiMsg.slice(0, 50), match[1]);
+      break;
+    }
+  }
+  
+  // 检测用户偏好
+  if (userMsg.includes('以后') && (userMsg.includes('都这样') || userMsg.includes('就这么做'))) {
+    recordUserPreference('style', userMsg);
+  }
+  
+  // 更新统计
+  const data = getEvolutionData();
+  data.stats.totalChats++;
+  saveEvolutionData(data);
+}
 function showToast(msg) {
   const t = document.createElement('div');
   t.textContent = msg;
@@ -1750,6 +1974,10 @@ const SLASH_COMMANDS = [
   { cmd: '/找技能', icon: '🔍', desc: '搜索 ClawHub 技能', prompt: '/找技能 ' },
   { cmd: '/邮件', icon: '📧', desc: '收发邮件（需配置IMAP/SMTP）', prompt: '/邮件 ' },
   { cmd: '/读文件', icon: '📄', desc: '读取任意文件内容', prompt: '/读文件 ' },
+  { cmd: '/进化状态', icon: '🧬', desc: '查看自我进化统计', prompt: '/进化状态' },
+  { cmd: '/清空进化', icon: '🗑️', desc: '清空进化数据重新开始', prompt: '/清空进化' },
+  { cmd: '/纠正', icon: '✏️', desc: '纠正我的回答帮我学习', prompt: '/纠正 ' },
+  { cmd: '/偏好', icon: '⚙️', desc: '设置你的偏好', prompt: '/偏好 ' },
 ];
 let pendingSearchEl = null;
 let cmdPopupOpen = false;
@@ -1984,6 +2212,105 @@ async function sendMessage() {
         ).join('\n\n');
       bubble.innerHTML = renderMarkdown(content);
     }
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /进化状态 command
+  if (text === '/进化状态') {
+    inputEl.value = '';
+    const data = getEvolutionData();
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    const stats = data.stats;
+    const recentErrors = data.errors.filter(e => Date.now() - e.time < 7 * 24 * 3600 * 1000).length;
+    const recentGaps = data.knowledgeGaps.filter(g => Date.now() - g.time < 3 * 24 * 3600 * 1000).length;
+    bubble.innerHTML = renderMarkdown(`🧬 **自我进化状态报告**
+
+**统计数据：**
+- 总对话数：${stats.totalChats}
+- 好评数：${stats.goodResponses} 👍
+- 差评数：${stats.badResponses} 👎
+- 好评率：${stats.totalChats > 0 ? ((stats.goodResponses / stats.totalChats) * 100).toFixed(1) : 0}%
+
+**学习能力：**
+- 记录的错误：${data.errors.length} 条（本周 ${recentErrors} 条）
+- 用户纠正：${data.corrections.length} 条
+- 好的回答模式：${data.goodPatterns.length} 条
+- 用户偏好：${data.userPreferences.length} 条
+- 知识盲区：${data.knowledgeGaps.length} 个（近期 ${recentGaps} 个）
+
+**能力提升建议：**
+${data.knowledgeGaps.length > 0 ? '- 有知识盲区需要搜索学习' : ''}
+${data.errors.length > 3 ? '- 有多次错误需要反思' : ''}
+${data.corrections.length > 0 ? '- 已从用户纠正中学习' : ''}
+${data.goodPatterns.length > 3 ? '- 已掌握多种高效回答模式' : ''}
+
+使用 \`/纠正 [内容]\` 可以教我改进，使用 \`/清空进化\` 可以重置。`);
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /清空进化 command
+  if (text === '/清空进化') {
+    inputEl.value = '';
+    if (confirm('确定要清空所有进化数据吗？这将重置我的学习能力。')) {
+      localStorage.removeItem(EVOLUTION_KEY);
+      showToast('🗑️ 进化数据已清空');
+      const bubble = addAIMessage();
+      bubble.classList.remove('streaming');
+      bubble.innerHTML = renderMarkdown('✅ 进化数据已清空，我将重新开始学习。');
+      scrollBottom();
+    }
+    return;
+  }
+
+  // Intercept /纠正 command
+  if (/^\/纠正\s+/.test(text)) {
+    inputEl.value = '';
+    const correction = text.replace(/^\/纠正\s+/, '').trim();
+    if (!correction) return;
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    
+    // 记录纠正
+    if (history.length > 1) {
+      const lastAI = history[history.length - 1]?.content || '';
+      recordCorrection(lastAI.slice(0, 50), correction);
+    }
+    
+    bubble.innerHTML = renderMarkdown(`✅ **已收到纠正！**
+
+你说的是：**${escapeHtml(correction)}**
+
+我已经记住了这个纠正，下次遇到类似情况我会改进。谢谢你的教导！🐱`);
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /偏好 command
+  if (/^\/偏好\s+/.test(text)) {
+    inputEl.value = '';
+    const preference = text.replace(/^\/偏好\s+/, '').trim();
+    if (!preference) return;
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    
+    // 解析偏好（格式：类别:内容 或直接内容）
+    const parts = preference.split(':');
+    if (parts.length >= 2) {
+      recordUserPreference(parts[0].trim(), parts.slice(1).join(':').trim());
+    } else {
+      recordUserPreference('general', preference);
+    }
+    
+    bubble.innerHTML = renderMarkdown(`✅ **已记录偏好！**
+
+你的偏好：**${escapeHtml(preference)}**
+
+我会在后续对话中遵循这个偏好。🐱`);
     scrollBottom();
     return;
   }
@@ -2675,8 +3002,19 @@ function addAIMessage() {
   const modelInfo = document.createElement('div');
   modelInfo.className = 'msg-model';
   modelInfo.textContent = getModelShortName(modelSelect.value) + ' · 思考中';
+  
+  // 反馈按钮
+  const feedback = document.createElement('div');
+  feedback.className = 'msg-feedback';
+  feedback.innerHTML = `
+    <button class="fb-btn fb-good" title="回答很好" onclick="handleFeedback(this, 'good')">👍</button>
+    <button class="fb-btn fb-bad" title="回答有问题" onclick="handleFeedback(this, 'bad')">👎</button>
+    <button class="fb-btn fb-copy" title="复制回复" onclick="copyAIMessage(this)">📋</button>
+  `;
+  
   meta.appendChild(time);
   meta.appendChild(modelInfo);
+  meta.appendChild(feedback);
   const content = document.createElement('div');
   content.className = 'msg-content';
   content.appendChild(bubble);
@@ -2686,6 +3024,40 @@ function addAIMessage() {
   msgs.appendChild(div);
   scrollBottom();
   return bubble;
+}
+
+// 处理用户反馈
+function handleFeedback(btn, type) {
+  const msgDiv = btn.closest('.msg.ai');
+  const bubble = msgDiv.querySelector('.msg-bubble');
+  const aiContent = bubble.textContent || bubble.innerText;
+  const userMsg = history.length > 1 ? history[history.length - 2]?.content : '';
+  
+  if (type === 'good') {
+    recordGoodPattern(aiContent.slice(0, 100), userMsg);
+    showToast('✅ 已记录好评！我会继续保持');
+    btn.style.opacity = '1';
+    btn.style.transform = 'scale(1.2)';
+  } else {
+    recordError('user_feedback', aiContent.slice(0, 100), '用户点踩');
+    showToast('👎 已记录问题，我会改进');
+    btn.style.opacity = '1';
+    btn.style.transform = 'scale(1.2)';
+  }
+  
+  // 禁用按钮
+  const btns = btn.parentElement.querySelectorAll('.fb-btn');
+  btns.forEach(b => b.disabled = true);
+}
+
+// 复制 AI 消息
+function copyAIMessage(btn) {
+  const msgDiv = btn.closest('.msg.ai');
+  const bubble = msgDiv.querySelector('.msg-bubble');
+  const text = bubble.textContent || bubble.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📋 已复制到剪贴板');
+  });
 }
 
 async function evaluateLearning(userMsg, aiResponse) {
@@ -2749,7 +3121,7 @@ async function streamResponse(el, _toolIteration = 0) {
     const body = {
       model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT + buildLearningsPrompt() + buildOntologyPrompt((() => { const c = trimmedHistory[trimmedHistory.length - 1]?.content; return Array.isArray(c) ? c.map(x => x.text || '').join(' ') : (c || ''); })()) },
+        { role: 'system', content: SYSTEM_PROMPT + buildLearningsPrompt() + buildEvolutionPrompt() + buildOntologyPrompt((() => { const c = trimmedHistory[trimmedHistory.length - 1]?.content; return Array.isArray(c) ? c.map(x => x.text || '').join(' ') : (c || ''); })()) },
         ...trimmedHistory
       ],
       stream: true,
@@ -2883,7 +3255,11 @@ async function streamResponse(el, _toolIteration = 0) {
 
   // 异步评估是否有值得记录的经验（不阻塞主流程）
   const lastUserMsg = history.length >= 2 ? history[history.length - 2]?.content : '';
-  if (typeof lastUserMsg === 'string') evaluateLearning(lastUserMsg, fullText);
+  if (typeof lastUserMsg === 'string') {
+    evaluateLearning(lastUserMsg, fullText);
+    // 自我进化：分析对话
+    analyzeConversation(lastUserMsg, fullText);
+  }
 
   if (usage) {
     totalTokens += (usage.total_tokens || 0);
