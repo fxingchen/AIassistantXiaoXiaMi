@@ -303,6 +303,75 @@
   .fb-btn.fb-good:hover { color: var(--green); }
   .fb-btn.fb-bad:hover { color: var(--red); }
 
+  /* 消息菜单样式 */
+  .msg-menu-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.3;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    color: var(--text-dim);
+  }
+  .msg-menu-btn:hover {
+    opacity: 1;
+    background: var(--bg3);
+  }
+  .msg-menu {
+    position: absolute;
+    right: 8px;
+    top: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 100;
+    min-width: 160px;
+    display: none;
+    overflow: hidden;
+  }
+  .msg-menu.show {
+    display: block;
+    animation: menuFadeIn 0.15s ease;
+  }
+  @keyframes menuFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .msg-menu-item:hover {
+    background: var(--bg3);
+  }
+  .msg-menu-item.danger:hover {
+    background: rgba(255,80,80,0.1);
+    color: var(--red);
+  }
+  .msg-menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+  .msg-menu-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg3);
+  }
+  .msg-wrapper {
+    position: relative;
+  }
+
   .msg-time {
     font-size: 10px; color: var(--text-muted);
   }
@@ -3006,10 +3075,38 @@ function addAIMessage() {
   // 反馈按钮
   const feedback = document.createElement('div');
   feedback.className = 'msg-feedback';
+  
+  // 消息ID（用于复制请求ID）
+  const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  div.dataset.msgId = msgId;
+  
   feedback.innerHTML = `
-    <button class="fb-btn fb-good" title="回答很好" onclick="handleFeedback(this, 'good')">👍</button>
-    <button class="fb-btn fb-bad" title="回答有问题" onclick="handleFeedback(this, 'bad')">👎</button>
-    <button class="fb-btn fb-copy" title="复制回复" onclick="copyAIMessage(this)">📋</button>
+    <button class="msg-menu-btn" title="更多操作" onclick="toggleMsgMenu(this)">⋯</button>
+    <div class="msg-menu">
+      <div class="msg-menu-header">
+        <span class="menu-tokens">积分消耗：计算中...</span>
+      </div>
+      <div class="msg-menu-item" onclick="copyAIMessage(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        复制回复
+      </div>
+      <div class="msg-menu-item" onclick="copyRequestId(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        复制请求ID
+      </div>
+      <div class="msg-menu-divider"></div>
+      <div class="msg-menu-item" onclick="handleFeedback(this, 'good')">
+        <span style="font-size:14px">👍</span> 回答很好
+      </div>
+      <div class="msg-menu-item" onclick="handleFeedback(this, 'bad')">
+        <span style="font-size:14px">👎</span> 回答有问题
+      </div>
+      <div class="msg-menu-divider"></div>
+      <div class="msg-menu-item danger" onclick="deleteMessage(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        删除消息
+      </div>
+    </div>
   `;
   
   meta.appendChild(time);
@@ -3036,18 +3133,12 @@ function handleFeedback(btn, type) {
   if (type === 'good') {
     recordGoodPattern(aiContent.slice(0, 100), userMsg);
     showToast('✅ 已记录好评！我会继续保持');
-    btn.style.opacity = '1';
-    btn.style.transform = 'scale(1.2)';
   } else {
     recordError('user_feedback', aiContent.slice(0, 100), '用户点踩');
     showToast('👎 已记录问题，我会改进');
-    btn.style.opacity = '1';
-    btn.style.transform = 'scale(1.2)';
   }
   
-  // 禁用按钮
-  const btns = btn.parentElement.querySelectorAll('.fb-btn');
-  btns.forEach(b => b.disabled = true);
+  closeAllMenus();
 }
 
 // 复制 AI 消息
@@ -3057,7 +3148,71 @@ function copyAIMessage(btn) {
   const text = bubble.textContent || bubble.innerText;
   navigator.clipboard.writeText(text).then(() => {
     showToast('📋 已复制到剪贴板');
+    closeAllMenus();
   });
+}
+
+// 切换消息菜单
+function toggleMsgMenu(btn) {
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.classList.contains('show');
+  closeAllMenus();
+  if (!isOpen) {
+    menu.classList.add('show');
+  }
+}
+
+// 关闭所有菜单
+function closeAllMenus() {
+  document.querySelectorAll('.msg-menu.show').forEach(m => m.classList.remove('show'));
+}
+
+// 点击其他地方关闭菜单
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.msg-feedback')) {
+    closeAllMenus();
+  }
+});
+
+// 复制请求ID
+function copyRequestId(btn) {
+  const msgDiv = btn.closest('.msg.ai');
+  const msgId = msgDiv.dataset.msgId || 'unknown';
+  navigator.clipboard.writeText(msgId).then(() => {
+    showToast('📋 已复制请求ID');
+    closeAllMenus();
+  });
+}
+
+// 删除消息
+function deleteMessage(btn) {
+  const msgDiv = btn.closest('.msg.ai');
+  const menu = btn.closest('.msg-menu');
+  const tokensEl = menu.querySelector('.menu-tokens');
+  const tokenInfo = tokensEl ? tokensEl.textContent : '';
+  
+  if (confirm('确定要删除这条消息吗？')) {
+    // 从 history 中删除（找到最后一条AI消息）
+    const lastAIMsgIdx = history.length - 1;
+    if (history[lastAIMsgIdx]?.role === 'assistant') {
+      history.pop();
+      saveSession();
+    }
+    msgDiv.remove();
+    showToast('🗑️ 消息已删除');
+    closeAllMenus();
+  }
+}
+
+// 更新消息的token消耗显示
+function updateMsgTokens(msgDiv, tokens, cost) {
+  const menu = msgDiv.querySelector('.msg-menu');
+  if (menu) {
+    const tokensEl = menu.querySelector('.menu-tokens');
+    if (tokensEl) {
+      tokensEl.textContent = `积分消耗：${cost ? cost.toFixed(2) : tokens}`;
+    }
+  }
 }
 
 async function evaluateLearning(userMsg, aiResponse) {
@@ -3264,6 +3419,13 @@ async function streamResponse(el, _toolIteration = 0) {
   if (usage) {
     totalTokens += (usage.total_tokens || 0);
     document.getElementById('token-count').textContent = `${totalTokens} tokens`;
+    // 更新当前消息菜单中的token消耗
+    const msgDiv = el?.closest('.msg.ai');
+    if (msgDiv) {
+      // 计算积分消耗（假设每1K tokens约0.01元）
+      const cost = ((usage.total_tokens || 0) / 1000) * 0.01;
+      updateMsgTokens(msgDiv, usage.total_tokens, cost);
+    }
   }
 
   isStreaming = false;
@@ -3279,13 +3441,52 @@ function addAIMessageStatic(text) {
   const msgs = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = 'msg ai';
+  
+  // 消息ID
+  const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  div.dataset.msgId = msgId;
+  
   const avatarDiv = document.createElement('div');
   avatarDiv.className = 'msg-avatar';
   avatarDiv.innerHTML = CAT_AVATAR_STATIC;
   div.appendChild(avatarDiv);
+  
   const contentDiv = document.createElement('div');
   contentDiv.className = 'msg-content';
-  contentDiv.innerHTML = `<div class="msg-bubble">${renderMarkdown(text)}</div>`;
+  contentDiv.innerHTML = `
+    <div class="msg-bubble">${renderMarkdown(text)}</div>
+    <div class="msg-meta">
+      <div class="msg-time">${timeStr()}</div>
+      <div class="msg-feedback">
+        <button class="msg-menu-btn" title="更多操作" onclick="toggleMsgMenu(this)">⋯</button>
+        <div class="msg-menu">
+          <div class="msg-menu-header">
+            <span class="menu-tokens">积分消耗：--</span>
+          </div>
+          <div class="msg-menu-item" onclick="copyAIMessage(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            复制回复
+          </div>
+          <div class="msg-menu-item" onclick="copyRequestId(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            复制请求ID
+          </div>
+          <div class="msg-menu-divider"></div>
+          <div class="msg-menu-item" onclick="handleFeedback(this, 'good')">
+            <span style="font-size:14px">👍</span> 回答很好
+          </div>
+          <div class="msg-menu-item" onclick="handleFeedback(this, 'bad')">
+            <span style="font-size:14px">👎</span> 回答有问题
+          </div>
+          <div class="msg-menu-divider"></div>
+          <div class="msg-menu-item danger" onclick="deleteMessage(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            删除消息
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
   div.appendChild(contentDiv);
   msgs.appendChild(div);
 }
