@@ -3108,27 +3108,18 @@ function addAIMessage() {
   div.dataset.msgId = msgId;
   
   feedback.innerHTML = `
+    <button class="fb-btn fb-good" title="回答很好" onclick="handleFeedback(this, 'good')">👍</button>
+    <button class="fb-btn fb-bad" title="回答有问题" onclick="handleFeedback(this, 'bad')">👎</button>
+    <button class="fb-btn fb-copy" title="复制回复" onclick="copyAIMessage(this)">📋</button>
     <button class="msg-menu-btn" title="更多操作" onclick="toggleMsgMenu(this)">⋯</button>
     <div class="msg-menu">
       <div class="msg-menu-header">
         <span class="menu-tokens">积分消耗：计算中...</span>
       </div>
-      <div class="msg-menu-item" onclick="copyAIMessage(this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        复制回复
-      </div>
       <div class="msg-menu-item" onclick="copyRequestId(this)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         复制请求ID
       </div>
-      <div class="msg-menu-divider"></div>
-      <div class="msg-menu-item" onclick="handleFeedback(this, 'good')">
-        <span style="font-size:14px">👍</span> 回答很好
-      </div>
-      <div class="msg-menu-item" onclick="handleFeedback(this, 'bad')">
-        <span style="font-size:14px">👎</span> 回答有问题
-      </div>
-      <div class="msg-menu-divider"></div>
       <div class="msg-menu-item danger" onclick="deleteMessage(this)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         删除消息
@@ -3368,9 +3359,8 @@ async function streamResponse(el, _toolIteration = 0) {
       // 自动错误分析
       const errorMsg = err.message || '未知错误';
       let analysis = analyzeError(errorMsg);
-      el.innerHTML = `<div style="color:var(--red)">⚠️ ${escapeHtml(errorMsg)}</div>
-        <div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;font-size:13px">
-          <div style="font-weight:600;margin-bottom:6px">🔍 错误分析与解决方案：</div>
+      el.innerHTML = `<div style="color:var(--red);margin-bottom:4px">⚠️ ${escapeHtml(errorMsg)}</div>
+        <div style="padding:6px 8px;background:var(--bg3);border-radius:6px;font-size:12px;line-height:1.5">
           ${analysis}
         </div>`;
       setStatus('出错了', 'error');
@@ -3492,27 +3482,18 @@ function addAIMessageStatic(text) {
     <div class="msg-meta">
       <div class="msg-time">${timeStr()}</div>
       <div class="msg-feedback">
+        <button class="fb-btn fb-good" title="回答很好" onclick="handleFeedback(this, 'good')">👍</button>
+        <button class="fb-btn fb-bad" title="回答有问题" onclick="handleFeedback(this, 'bad')">👎</button>
+        <button class="fb-btn fb-copy" title="复制回复" onclick="copyAIMessage(this)">📋</button>
         <button class="msg-menu-btn" title="更多操作" onclick="toggleMsgMenu(this)">⋯</button>
         <div class="msg-menu">
           <div class="msg-menu-header">
             <span class="menu-tokens">积分消耗：--</span>
           </div>
-          <div class="msg-menu-item" onclick="copyAIMessage(this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            复制回复
-          </div>
           <div class="msg-menu-item" onclick="copyRequestId(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
             复制请求ID
           </div>
-          <div class="msg-menu-divider"></div>
-          <div class="msg-menu-item" onclick="handleFeedback(this, 'good')">
-            <span style="font-size:14px">👍</span> 回答很好
-          </div>
-          <div class="msg-menu-item" onclick="handleFeedback(this, 'bad')">
-            <span style="font-size:14px">👎</span> 回答有问题
-          </div>
-          <div class="msg-menu-divider"></div>
           <div class="msg-menu-item danger" onclick="deleteMessage(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             删除消息
@@ -3535,117 +3516,50 @@ function analyzeError(errorMsg) {
   
   // HTTP 400 错误
   if (lower.includes('400') || lower.includes('bad request')) {
-    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>HTTP 400 - 请求参数错误</div>
-    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
-    <ul style="margin:0 0 8px 16px;padding:0">
-      <li>API Key 格式不正确或已过期</li>
-      <li>请求参数格式错误</li>
-      <li>模型名称拼写错误</li>
-    </ul>
-    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
-    <ol style="margin:0 0 0 16px;padding:0">
-      <li>检查 API Key 是否正确配置（点击设置按钮）</li>
-      <li>确认选择的模型名称正确</li>
-      <li>尝试切换到其他模型</li>
-      <li>如果使用的是 SiliconFlow，前往 <a href="https://cloud.siliconflow.cn" target="_blank" style="color:var(--accent)">控制台</a> 检查 API Key 状态</li>
-    </ol>`;
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>HTTP 400 - 请求参数错误</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>API Key格式错误、请求参数格式错误、模型名称错误</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>检查API Key配置→确认模型名称→切换模型→检查控制台</div>`;
   }
   
   // HTTP 401/403 错误
   if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized') || lower.includes('forbidden')) {
-    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>认证失败</div>
-    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
-    <ul style="margin:0 0 8px 16px;padding:0">
-      <li>API Key 无效或已过期</li>
-      <li>账户余额不足</li>
-      <li>没有该模型的访问权限</li>
-    </ul>
-    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
-    <ol style="margin:0 0 0 16px;padding:0">
-      <li>点击设置按钮重新配置 API Key</li>
-      <li>检查账户余额是否充足</li>
-      <li>确认有权限访问当前选择的模型</li>
-    </ol>`;
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>认证失败</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>API Key无效、账户余额不足、权限不足</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>重新配置API Key→检查余额→确认模型权限</div>`;
   }
   
   // HTTP 429 错误
   if (lower.includes('429') || lower.includes('rate limit') || lower.includes('too many')) {
-    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>请求频率限制</div>
-    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
-    <ul style="margin:0 0 8px 16px;padding:0">
-      <li>短时间内发送了太多请求</li>
-      <li>超过了 API 的调用频率限制</li>
-    </ul>
-    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
-    <ol style="margin:0 0 0 16px;padding:0">
-      <li>等待 1-2 分钟后重试</li>
-      <li>减少对话频率</li>
-      <li>考虑升级 API 套餐获取更高的频率限制</li>
-    </ol>`;
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>请求频率限制</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>请求太频繁、超出频率限制</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>等待1-2分钟重试→降低频率→升级套餐</div>`;
   }
   
   // HTTP 500/502/503 错误
   if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('server error') || lower.includes('unavailable')) {
-    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>服务器错误</div>
-    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
-    <ul style="margin:0 0 8px 16px;padding:0">
-      <li>API 服务暂时不可用</li>
-      <li>服务器正在维护</li>
-      <li>服务器过载</li>
-    </ul>
-    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
-    <ol style="margin:0 0 0 16px;padding:0">
-      <li>等待几分钟后重试</li>
-      <li>尝试切换到其他模型</li>
-      <li>检查服务商状态页面</li>
-    </ol>`;
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>服务器错误</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>服务不可用、正在维护、服务器过载</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>等待几分钟后重试→切换模型→检查状态页面</div>`;
   }
   
   // 网络错误
   if (lower.includes('network') || lower.includes('connection') || lower.includes('timeout') || lower.includes('econnrefused') || lower.includes('fetch failed')) {
-    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>网络连接错误</div>
-    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
-    <ul style="margin:0 0 8px 16px;padding:0">
-      <li>网络连接不稳定</li>
-      <li>代理设置问题</li>
-      <li>防火墙阻止连接</li>
-    </ul>
-    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
-    <ol style="margin:0 0 0 16px;padding:0">
-      <li>检查网络连接</li>
-      <li>检查代理设置</li>
-      <li>尝试关闭 VPN 或切换节点</li>
-      <li>检查防火墙设置</li>
-    </ol>`;
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>网络连接错误</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>网络不稳定、代理设置问题、防火墙</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>检查网络→检查代理→关闭VPN/切换节点→检查防火墙</div>`;
   }
   
   // 上下文长度超限
   if (lower.includes('context') || lower.includes('token') || lower.includes('length') || lower.includes('too long')) {
-    return `<div style="margin-bottom:8px"><strong>错误类型：</strong>上下文长度超限</div>
-    <div style="margin-bottom:8px"><strong>可能原因：</strong></div>
-    <ul style="margin:0 0 8px 16px;padding:0">
-      <li>对话历史太长，超过了模型的上下文限制</li>
-      <li>发送的内容包含大量文本</li>
-    </ul>
-    <div style="margin-bottom:8px"><strong>解决方案：</strong></div>
-    <ol style="margin:0 0 0 16px;padding:0">
-      <li>点击"新对话"按钮开始新对话</li>
-      <li>简化输入内容</li>
-      <li>选择支持更长上下文的模型</li>
-    </ol>`;
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>上下文长度超限</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>对话历史太长、内容过多</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>开始新对话→简化输入→选择支持长上下文的模型</div>`;
   }
   
   // 默认错误
-  return `<div style="margin-bottom:8px"><strong>错误类型：</strong>未知错误</div>
-  <div style="margin-bottom:8px"><strong>建议操作：</strong></div>
-  <ol style="margin:0 0 0 16px;padding:0">
-    <li>尝试重新发送消息</li>
-    <li>开始新对话</li>
-    <li>检查 API Key 配置</li>
-    <li>切换到其他模型试试</li>
-    <li>如果问题持续，请联系技术支持</li>
-  </ol>
-  <div style="margin-top:8px;color:var(--muted);font-size:11px">错误详情：${escapeHtml(errorMsg)}</div>`;
+  return `<div style="margin-bottom:4px"><strong>错误类型：</strong>未知错误</div>
+  <div style="margin-bottom:2px"><strong>建议操作：</strong>重试→新对话→检查API Key→切换模型→联系技术支持</div>
+  <div style="color:var(--muted);font-size:11px">${escapeHtml(errorMsg)}</div>`;
 }
 
 
