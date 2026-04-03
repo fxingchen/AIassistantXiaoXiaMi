@@ -1,5 +1,6 @@
 # VS Code extension build output
 *.vsix
+!claude-chat-*.vsix
 
 # Node modules
 node_modules/
