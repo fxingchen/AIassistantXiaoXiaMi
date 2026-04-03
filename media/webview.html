@@ -1,0 +1,4892 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https:; connect-src https://api.siliconflow.cn https://api.deepseek.com https://dashscope.aliyuncs.com https://open.bigmodel.cn https://api.moonshot.cn https://api.openai.com;">
+<title>小虾米 AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f17;
+    --bg2: #16161f;
+    --bg3: #1e1e2e;
+    --border: #2a2a3f;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent-glow: rgba(124,58,237,0.25);
+    --text: #e2e0f0;
+    --text-dim: #8b8aac;
+    --text-muted: #5c5b7a;
+    --user-bg: #1a1040;
+    --ai-bg: #0f1526;
+    --code-bg: #0a0a14;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --shadow: 0 4px 16px rgba(0,0,0,0.3);
+    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Light theme */
+  [data-theme="light"] {
+    --bg: #ffffff;
+    --bg2: #f8f9fa;
+    --bg3: #e9ecef;
+    --border: #dee2e6;
+    --accent: #6d28d9;
+    --accent2: #9333ea;
+    --accent-glow: rgba(109,40,217,0.15);
+    --text: #1a1a2e;
+    --text-dim: #495057;
+    --text-muted: #6c757d;
+    --user-bg: #ede9fe;
+    --ai-bg: #f8f9fa;
+    --code-bg: #f1f3f5;
+    --shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+
+  /* Ocean theme */
+  [data-theme="ocean"] {
+    --bg: #0c1929;
+    --bg2: #132238;
+    --bg3: #1a2d47;
+    --border: #2a4158;
+    --accent: #06b6d4;
+    --accent2: #22d3ee;
+    --accent-glow: rgba(6,182,212,0.25);
+    --text: #e0f2fe;
+    --text-dim: #7dd3fc;
+    --text-muted: #38bdf8;
+    --user-bg: #0e2a3d;
+    --ai-bg: #0a1f2e;
+    --code-bg: #061522;
+    --green: #10b981;
+    --red: #f43f5e;
+    --yellow: #fbbf24;
+  }
+
+  /* Forest theme */
+  [data-theme="forest"] {
+    --bg: #0d1912;
+    --bg2: #152117;
+    --bg3: #1e2e1f;
+    --border: #2a4a2e;
+    --accent: #10b981;
+    --accent2: #34d399;
+    --accent-glow: rgba(16,185,129,0.25);
+    --text: #ecfdf5;
+    --text-dim: #6ee7b7;
+    --text-muted: #34d399;
+    --user-bg: #0f2a17;
+    --ai-bg: #0a1f10;
+    --code-bg: #081510;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #header .avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  #header .title { font-weight: 600; font-size: 13px; flex: 1; }
+  #header .subtitle { font-size: 10px; color: var(--text-muted); }
+
+  #model-select {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 10px;
+    cursor: pointer;
+    outline: none;
+    max-width: 120px;
+    height: 26px;
+  }
+  #model-select:focus { border-color: var(--accent); }
+
+  #new-chat-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-dim); border-radius: 6px;
+    padding: 3px 8px; font-size: 11px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  #new-chat-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── Messages ── */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 0;
+    scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 4px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .msg.user { flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; flex-shrink: 0; margin-top: 2px;
+  }
+  .msg.user .msg-avatar {
+    background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+    box-shadow: 0 0 6px rgba(124,58,237,0.3);
+  }
+  .msg.ai .msg-avatar {
+    background: linear-gradient(135deg, var(--accent), #ec4899);
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  .msg-content {
+    max-width: calc(100% - 40px);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .msg.user .msg-content { align-items: flex-end; }
+
+  .msg-bubble {
+    padding: 8px 11px;
+    border-radius: 12px;
+    font-size: 12.5px;
+    line-height: 1.65;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .msg.user .msg-bubble {
+    background: var(--user-bg);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 12px 4px 12px 12px;
+    color: var(--text);
+  }
+  .msg.ai .msg-bubble {
+    background: var(--ai-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px 12px 12px 12px;
+    color: var(--text);
+  }
+  .msg.ai .msg-bubble.streaming::after {
+    content: '▋';
+    display: inline-block;
+    animation: blink 0.7s steps(1) infinite;
+    color: var(--accent2);
+    margin-left: 1px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Markdown styles inside bubbles */
+  .msg-bubble p { margin: 0 0 6px; }
+  .msg-bubble p:last-child { margin: 0; }
+  .msg-bubble h1,.msg-bubble h2,.msg-bubble h3 {
+    font-size: 13px; font-weight: 700;
+    margin: 8px 0 4px; color: var(--accent2);
+  }
+  .msg-bubble ul, .msg-bubble ol { padding-left: 16px; margin: 4px 0; }
+  .msg-bubble li { margin: 2px 0; }
+  .msg-bubble code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 11.5px;
+    color: #c4b5fd;
+  }
+  .msg-bubble pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 6px 0;
+    overflow: hidden;
+  }
+  .msg-bubble pre .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 10px;
+    background: #0d0d1a;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px; color: var(--text-muted);
+  }
+  .msg-bubble pre .copy-btn {
+    background: none; border: none;
+    color: var(--text-muted); cursor: pointer;
+    font-size: 10px; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.15s;
+  }
+  .msg-bubble pre .copy-btn:hover { background: var(--border); color: var(--text); }
+  .msg-bubble pre code {
+    display: block; padding: 10px;
+    background: none; border: none;
+    white-space: pre; overflow-x: auto;
+    font-size: 11.5px; line-height: 1.5;
+    color: #a9b1d6;
+  }
+  .msg-bubble blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 10px; margin: 6px 0;
+    color: var(--text-dim);
+  }
+  .msg-bubble a { color: var(--accent2); text-decoration: none; }
+  .msg-bubble a:hover { text-decoration: underline; }
+  .diff-add { display: block; background: rgba(80,200,100,0.15); color: #7ec87e; }
+  .diff-del { display: block; background: rgba(220,80,80,0.15); color: #e06c75; }
+  .diff-meta { display: block; color: #61afef; }
+  .msg-bubble strong { color: #fff; font-weight: 600; }
+  .msg-bubble em { color: var(--accent2); }
+  .msg-bubble hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+  .msg-bubble table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+  .msg-bubble th, .msg-bubble td { border: 1px solid var(--border); padding: 4px 8px; }
+  .msg-bubble th { background: var(--bg3); color: var(--accent2); }
+
+  .command-panel {
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.02);
+  }
+  .command-panel-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .command-panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .command-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .command-panel-count {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .command-filter-btn,
+  .command-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 3px 7px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .command-filter-btn:hover,
+  .command-toggle-btn:hover {
+    color: var(--text);
+    border-color: var(--accent2);
+  }
+  .command-filter-btn.active {
+    color: var(--accent2);
+    border-color: var(--accent2);
+    background: rgba(124,58,237,0.12);
+  }
+  .command-copy-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 3px 7px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .command-copy-btn:hover {
+    color: var(--text);
+    border-color: var(--accent2);
+  }
+  .command-copy-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    border-color: var(--border);
+    color: var(--text-muted);
+  }
+  .command-panel-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .command-entry {
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .command-entry:first-child {
+    border-top: none;
+  }
+  .command-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+  }
+  .command-entry-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .command-entry-label {
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .command-entry-meta {
+    margin-top: 2px;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .command-status {
+    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 10px;
+    border: 1px solid transparent;
+  }
+  .command-status.running {
+    color: var(--yellow);
+    border-color: rgba(234,179,8,0.35);
+    background: rgba(234,179,8,0.12);
+  }
+  .command-status.success {
+    color: var(--green);
+    border-color: rgba(34,197,94,0.35);
+    background: rgba(34,197,94,0.12);
+  }
+  .command-status.failed,
+  .command-status.stopped {
+    color: var(--red);
+    border-color: rgba(239,68,68,0.35);
+    background: rgba(239,68,68,0.12);
+  }
+  .command-entry-body {
+    padding: 0 10px 10px;
+  }
+  .command-entry-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .command-stream-block {
+    margin-top: 8px;
+  }
+  .command-stream-block:first-child {
+    margin-top: 0;
+  }
+  .command-stream-label {
+    margin-bottom: 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .command-stream-code {
+    display: block;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #a9b1d6;
+    max-height: 260px;
+    overflow: auto;
+  }
+  .command-stream-code.stderr {
+    color: #fda4af;
+  }
+  .command-panel-empty {
+    padding: 12px 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .msg-meta {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 4px;
+  }
+
+  .msg-feedback {
+    display: flex; align-items: center; gap: 2px;
+    margin-left: auto;
+    position: relative;
+  }
+  .fb-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.4;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .fb-btn:hover {
+    opacity: 1;
+    background: var(--bg3);
+  }
+  .fb-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .fb-btn.fb-good:hover { color: var(--green); }
+  .fb-btn.fb-bad:hover { color: var(--red); }
+
+  /* 消息菜单样式 */
+  .msg-menu-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.3;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    color: var(--text-dim);
+  }
+  .msg-menu-btn:hover {
+    opacity: 1;
+    background: var(--bg3);
+  }
+  .msg-menu {
+    position: absolute;
+    right: 8px;
+    top: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 100;
+    min-width: 160px;
+    display: none;
+    overflow: hidden;
+  }
+  .msg-menu.show {
+    display: block;
+    animation: menuFadeIn 0.15s ease;
+  }
+  @keyframes menuFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .msg-menu-item:hover {
+    background: var(--bg3);
+  }
+  .msg-menu-item.danger:hover {
+    background: rgba(255,80,80,0.1);
+    color: var(--red);
+  }
+  .msg-menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+  .msg-menu-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg3);
+  }
+  .msg-wrapper {
+    position: relative;
+  }
+
+  .msg-time {
+    font-size: 10px; color: var(--text-muted);
+  }
+
+  .msg-model {
+    font-size: 9.5px; color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  /* Image in message */
+  .msg-bubble img {
+    max-width: 100%; max-height: 200px;
+    border-radius: 8px; margin: 4px 0;
+    border: 1px solid var(--border);
+    display: block;
+  }
+
+  /* Code context block */
+  .context-block {
+    background: var(--code-bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    margin-bottom: 4px;
+    overflow: hidden;
+    font-size: 11px;
+  }
+  .context-block .context-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 10px;
+    background: rgba(124,58,237,0.1);
+    color: var(--accent2); font-size: 10px;
+  }
+  .context-block .context-header .remove-ctx {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 12px; padding: 0 2px;
+    line-height: 1;
+  }
+  .context-block .context-header .remove-ctx:hover { color: var(--red); }
+  .context-block code {
+    display: block; padding: 8px 10px;
+    background: none; border: none;
+    white-space: pre; overflow-x: auto;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 11px; max-height: 120px; color: #a9b1d6;
+  }
+
+  /* Welcome */
+  #welcome {
+    text-align: center; padding: 30px 16px;
+    animation: fadeIn 0.4s ease;
+  }
+  #welcome .w-icon { width: 60px; height: 60px; margin: 0 auto 8px; }
+  #welcome .w-icon svg { width: 100%; height: 100%; }
+  #welcome h2 { font-size: 15px; color: var(--text); margin-bottom: 4px; }
+  #welcome p { font-size: 11px; color: var(--text-dim); margin-bottom: 16px; }
+  #welcome .shortcuts {
+    display: flex; flex-direction: column; gap: 6px;
+    text-align: left;
+  }
+  #welcome .shortcut {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 11px; color: var(--text-dim);
+    cursor: pointer; transition: all 0.15s;
+  }
+  #welcome .shortcut:hover {
+    border-color: var(--accent); color: var(--text);
+    background: rgba(124,58,237,0.05);
+  }
+  #welcome .shortcut .s-icon { font-size: 14px; flex-shrink: 0; }
+  #welcome .shortcut kbd {
+    margin-left: auto; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 5px; font-size: 10px; color: var(--text-muted);
+    font-family: inherit;
+  }
+
+  /* ── Preview area (images + code context) ── */
+  #preview-area {
+    padding: 4px 10px 0;
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  #preview-area:empty { padding: 0; }
+
+  .img-preview {
+    position: relative; display: inline-block;
+  }
+  .img-preview img {
+    height: 56px; width: 56px; object-fit: cover;
+    border-radius: 8px; border: 1px solid var(--accent);
+    display: block;
+  }
+  .img-preview .remove-img {
+    position: absolute; top: -4px; right: -4px;
+    width: 16px; height: 16px;
+    background: var(--red); color: #fff;
+    border: none; border-radius: 50%;
+    font-size: 10px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+
+  .ctx-chip {
+    display: flex; align-items: center; gap: 4px;
+    background: rgba(124,58,237,0.12);
+    border: 1px solid var(--accent);
+    border-radius: 6px; padding: 3px 8px;
+    font-size: 10px; color: var(--accent2);
+  }
+  .ctx-chip .remove-chip {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 12px; padding: 0; line-height: 1;
+    margin-left: 2px;
+  }
+  .ctx-chip .remove-chip:hover { color: var(--red); }
+
+  /* ── Auto-context bar ── */
+  #auto-ctx-bar {
+    display: none;
+    padding: 3px 8px 0;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .auto-ctx-chip {
+    display: flex; align-items: center; gap: 4px;
+    background: rgba(34,197,94,0.07);
+    border: 1px solid rgba(34,197,94,0.28);
+    border-radius: 6px; padding: 2px 7px;
+    font-size: 10px; color: #4ade80;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    max-width: 100%; overflow: hidden;
+  }
+  .auto-ctx-chip .lang-badge {
+    background: rgba(34,197,94,0.15);
+    border-radius: 3px; padding: 0 3px;
+    font-size: 9px; flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .auto-ctx-chip .chip-label {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .auto-ctx-chip .remove-auto {
+    background: none; border: none;
+    color: rgba(34,197,94,0.4); cursor: pointer;
+    font-size: 12px; padding: 0; line-height: 1;
+    margin-left: 2px; flex-shrink: 0;
+  }
+  .auto-ctx-chip .remove-auto:hover { color: var(--red); }
+
+  /* ── Input area ── */
+  #input-area {
+    padding: 6px 8px 8px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  /* Slash command popup */
+  #cmd-popup {
+    position: absolute;
+    bottom: 100%; left: 8px; right: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow-y: auto;
+    max-height: 280px;
+    margin-bottom: 4px;
+    z-index: 50;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+  }
+  .cmd-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; cursor: pointer;
+    font-size: 12px; color: var(--text-dim);
+    transition: background 0.1s;
+  }
+  .cmd-item:hover, .cmd-item.selected { background: rgba(124,58,237,0.12); color: var(--text); }
+  .cmd-name { color: var(--accent2); font-weight: 600; min-width: 56px; font-size: 12px; }
+  .cmd-desc { color: var(--text-muted); font-size: 11px; }
+
+  /* Unified input box (VS Code style) */
+  #input-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.15s;
+    overflow: hidden;
+  }
+  #input-box:focus-within { border-color: var(--accent); }
+  #input-box.dragover { border-color: var(--accent2); background: rgba(124,58,237,0.06); }
+
+  #input {
+    width: 100%; background: none;
+    border: none; outline: none;
+    color: var(--text); font-size: 12.5px;
+    font-family: inherit; line-height: 1.5;
+    resize: none; padding: 9px 12px 5px;
+    max-height: 120px; min-height: 34px;
+    scrollbar-width: thin; display: block;
+  }
+  #input::placeholder { color: var(--text-muted); }
+
+  /* Action bar at bottom of input box */
+  #action-bar {
+    display: flex; align-items: center;
+    padding: 3px 6px 4px 8px; gap: 1px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  #action-left { display: flex; align-items: center; gap: 1px; flex: 1; }
+  .action-btn {
+    background: none; border: none;
+    color: var(--text-muted); border-radius: 5px;
+    width: 26px; height: 24px; font-size: 13px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .action-btn:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+  .action-btn.active { color: var(--accent2); background: rgba(124,58,237,0.12); }
+
+  #send-btn {
+    width: 28px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border: none; color: #fff; font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
+    box-shadow: 0 2px 6px var(--accent-glow);
+  }
+  #send-btn:hover { transform: scale(1.05); }
+  #send-btn:active { transform: scale(0.96); }
+  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  #send-btn.stop { background: linear-gradient(135deg, #dc2626, #ef4444); }
+
+  /* ── API key setup ── */
+  #setup-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px; gap: 12px;
+    animation: fadeIn 0.3s ease;
+  }
+  #setup-overlay .s-icon { font-size: 36px; }
+  #setup-overlay h2 { font-size: 15px; color: var(--text); }
+  #setup-overlay p { font-size: 11px; color: var(--text-dim); text-align: center; max-width: 240px; }
+  #setup-overlay input {
+    width: 100%; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; color: var(--text);
+    font-size: 12px; outline: none;
+  }
+  #setup-overlay input:focus { border-color: var(--accent); }
+  #setup-overlay button {
+    width: 100%; background: linear-gradient(135deg, var(--accent), #a855f7);
+    border: none; color: #fff; border-radius: 8px;
+    padding: 9px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  #setup-overlay button:hover { opacity: 0.9; }
+  #setup-overlay .setup-hint {
+    font-size: 10px; color: var(--text-muted); text-align: center;
+  }
+  #setup-overlay .setup-hint a { color: var(--accent2); text-decoration: none; }
+
+  /* ── Status bar ── */
+  #status-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    font-size: 10px; color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 4px var(--green);
+    flex-shrink: 0;
+  }
+  .status-dot.thinking { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); animation: pulse 1s ease-in-out infinite; }
+  .status-dot.error { background: var(--red); box-shadow: 0 0 4px var(--red); animation: none; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  #status-text { flex: 1; }
+  #token-count { color: var(--text-muted); }
+
+  /* scrollbar for code */
+  pre code::-webkit-scrollbar { height: 4px; }
+  pre code::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── History drawer ── */
+  #history-drawer {
+    position: fixed; inset: 0; z-index: 200;
+    display: none;
+  }
+  #history-drawer.open { display: block; }
+  #drawer-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px);
+  }
+  #drawer-panel {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 220px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  #history-drawer.open #drawer-panel { transform: translateX(0); }
+  #drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 600; color: var(--text);
+  }
+  #drawer-close {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 16px; line-height: 1; padding: 2px;
+  }
+  #drawer-close:hover { color: var(--text); }
+  #drawer-new-btn {
+    margin: 8px 10px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid var(--accent);
+    color: var(--accent2); border-radius: 7px;
+    padding: 7px 10px; font-size: 11px; cursor: pointer;
+    text-align: left; transition: all 0.15s;
+  }
+  #drawer-new-btn:hover { background: rgba(124,58,237,0.25); }
+  #drawer-list {
+    flex: 1; overflow-y: auto; padding: 4px 8px;
+  }
+  #drawer-list::-webkit-scrollbar { width: 3px; }
+  #drawer-list::-webkit-scrollbar-thumb { background: var(--border); }
+  .drawer-item {
+    padding: 8px 10px; border-radius: 7px;
+    font-size: 11px; color: var(--text-dim);
+    cursor: pointer; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .drawer-item:hover { background: var(--bg3); color: var(--text); }
+  .drawer-item.active { background: rgba(124,58,237,0.15); color: var(--accent2); }
+  .drawer-item .di-icon { flex-shrink: 0; font-size: 12px; }
+  .drawer-item .di-actions {
+    margin-left: auto; flex-shrink: 0;
+    display: flex; gap: 2px; opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .drawer-item:hover .di-actions { opacity: 1; }
+  .drawer-item .di-rename, .drawer-item .di-del {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 12px; padding: 0 2px; line-height: 1;
+    transition: color 0.15s;
+  }
+  .drawer-item .di-rename:hover { color: var(--accent2); }
+  .drawer-item .di-del:hover { color: var(--red); }
+  .drawer-item .di-title-input {
+    flex: 1; background: var(--bg3);
+    border: 1px solid var(--accent); border-radius: 4px;
+    color: var(--text); font-size: 11px;
+    padding: 1px 5px; outline: none;
+    min-width: 0;
+  }
+  #drawer-empty {
+    text-align: center; padding: 30px 10px;
+    font-size: 11px; color: var(--text-muted);
+  }
+
+  #hist-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 3px 7px; font-size: 11px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  #hist-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  #export-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 3px 7px; font-size: 11px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  #export-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  #theme-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 3px 7px; font-size: 11px; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  #theme-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Theme selector popup */
+  #theme-popup {
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+    box-shadow: var(--shadow);
+    z-index: 100;
+  }
+  #theme-popup.show { display: flex; }
+  .theme-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-dim);
+    transition: var(--transition);
+  }
+  .theme-option:hover { background: var(--bg2); color: var(--text); }
+  .theme-option.active { background: var(--accent); color: white; }
+  .theme-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+  }
+
+  .msg-retry {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 12px; padding: 0 3px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .msg:hover .msg-retry { opacity: 1; }
+  .msg-retry:hover { color: var(--accent2); }
+
+  .apply-btn { color: #4ade80 !important; }
+  .apply-btn:hover { background: rgba(34,197,94,0.1) !important; }
+
+  .accept-btn { color: #60a5fa !important; }
+  .accept-btn:hover { background: rgba(96,165,250,0.1) !important; }
+  .accept-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<!-- Setup overlay -->
+<div id="setup-overlay" style="display:none">
+  <div class="s-icon">🐱</div>
+  <h2>配置 API Key</h2>
+  <p>需要 API Key 才能使用小虾米<br>默认使用 SiliconFlow，也可接入中转平台</p>
+  <input type="password" id="api-key-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" />
+  <input type="text" id="base-url-input" placeholder="API 地址（留空用默认）" style="margin-top:6px" />
+  <button id="save-key-btn">保存并开始</button>
+  <div class="setup-hint">API Key 仅存储在本地，不会上传到任何服务器</div>
+</div>
+
+<!-- Header -->
+<div id="header" style="position: relative;">
+  <div class="avatar" id="header-avatar"></div>
+  <div>
+    <div class="title">小虾米</div>
+    <div class="subtitle">AI 助手</div>
+  </div>
+  <select id="provider-select" style="background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim); border-radius: 6px; padding: 5px 8px; font-size: 10px; cursor: pointer; outline: none; max-width: 100px; height: 26px;">
+    <option value="siliconflow">SiliconFlow</option>
+    <option value="deepseek">DeepSeek</option>
+    <option value="qwen">通义千问</option>
+    <option value="zhipu">智谱GLM</option>
+    <option value="moonshot">Moonshot</option>
+    <option value="openai">OpenAI</option>
+  </select>
+  <select id="model-select">
+    <option value="Qwen/Qwen3-235B-A22B">Qwen3-235B 🔥</option>
+    <option value="Qwen/Qwen3-32B">Qwen3-32B</option>
+    <option value="deepseek-ai/DeepSeek-R1-0528">DeepSeek-R1-0528</option>
+    <option value="deepseek-ai/DeepSeek-V3">DeepSeek-V3</option>
+    <option value="deepseek-ai/DeepSeek-R1">DeepSeek-R1</option>
+    <option value="Qwen/Qwen2.5-VL-72B-Instruct">Qwen2.5-VL-72B</option>
+    <option value="Qwen/Qwen2.5-72B-Instruct">Qwen2.5-72B</option>
+    <option value="Qwen/Qwen2.5-7B-Instruct">Qwen2.5-7B</option>
+  </select>
+  <button id="hist-btn" title="历史记录"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+  <button id="export-btn" title="导出对话"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+  <button id="theme-btn" title="切换主题"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
+  <button id="new-chat-btn" title="新对话"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+  <div id="theme-popup">
+    <div class="theme-option" data-theme="dark">
+      <div class="theme-dot" style="background: #0f0f17;"></div>
+      <span>暗黑</span>
+    </div>
+    <div class="theme-option" data-theme="light">
+      <div class="theme-dot" style="background: #ffffff;"></div>
+      <span>明亮</span>
+    </div>
+    <div class="theme-option" data-theme="ocean">
+      <div class="theme-dot" style="background: #0c1929;"></div>
+      <span>海洋</span>
+    </div>
+    <div class="theme-option" data-theme="forest">
+      <div class="theme-dot" style="background: #0d1912;"></div>
+      <span>森林</span>
+    </div>
+  </div>
+</div>
+
+<!-- History drawer -->
+<div id="history-drawer">
+  <div id="drawer-overlay"></div>
+  <div id="drawer-panel">
+    <div id="drawer-header">
+      <span>历史记录</span>
+      <button id="drawer-close">✕</button>
+    </div>
+    <button id="drawer-new-btn">+ 新对话</button>
+    <div id="drawer-list"></div>
+  </div>
+</div>
+
+<!-- Messages -->
+<div id="messages">
+  <div id="welcome">
+    <div class="w-icon" id="welcome-icon"></div>
+    <h2>你好，星空主人喵～</h2>
+    <p>我是小虾米，有什么可以帮你的呢？🐱喵~</p>
+    <div class="shortcuts">
+      <div class="shortcut" onclick="insertPrompt('解释这段代码的作用')">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span> 解释代码
+      </div>
+      <div class="shortcut" onclick="insertPrompt('帮我优化这段代码')">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> 优化代码
+      </div>
+      <div class="shortcut" onclick="insertPrompt('帮我找出并修复这段代码中的bug')">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span> Debug
+      </div>
+      <div class="shortcut" onclick="requestSelection()">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span> 发送选中代码
+        <kbd>Ctrl+Shift+I</kbd>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Input area -->
+<div id="input-area">
+  <div id="cmd-popup" style="display:none"></div>
+  <div id="input-box">
+    <div id="preview-area"></div>
+    <textarea id="input" rows="1" placeholder="问小虾米喵~ (输入 / 查看快捷指令，Ctrl+V 粘贴截图)"></textarea>
+    <div id="auto-ctx-bar"></div>
+    <div id="action-bar">
+      <div id="action-left">
+        <button class="action-btn" id="btn-selection" title="选中代码 (Ctrl+Shift+I)" onclick="requestSelection()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+        <button class="action-btn" id="btn-file" title="当前文件" onclick="requestFile()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></button>
+        <button class="action-btn" id="btn-image" title="上传图片" onclick="document.getElementById('img-input').click()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
+        <button class="action-btn" id="btn-code-file" title="添加代码文件" onclick="document.getElementById('file-input').click()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+        <button class="action-btn" id="btn-settings" title="设置 API Key" onclick="openSettings()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      </div>
+      <button id="send-btn" title="发送 (Enter)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+  </div>
+  <input type="file" id="img-input" accept="image/*" style="display:none" multiple>
+  <input type="file" id="file-input" accept=".txt,.js,.ts,.jsx,.tsx,.py,.java,.c,.cpp,.h,.go,.rs,.rb,.php,.cs,.html,.css,.json,.md,.sh,.sql,.vue,.yaml,.yml,.xml" style="display:none">
+</div>
+
+<!-- Status bar -->
+<div id="status-bar">
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-text">就绪</span>
+  <span id="token-count"></span>
+</div>
+
+<script>
+const vscode = acquireVsCodeApi();
+
+// ── 带眨眼动画的猫咪 SVG（用于 header）─
+const CAT_AVATAR_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#bgGrad)"/>
+  <path d="M 22 42 L 28 12 L 44 38 Z" fill="#0f0f23"/>
+  <path d="M 78 42 L 72 12 L 56 38 Z" fill="#0f0f23"/>
+  <path d="M 27 38 L 31 18 L 40 36 Z" fill="#ec4899" opacity="0.3"/>
+  <path d="M 73 38 L 69 18 L 60 36 Z" fill="#ec4899" opacity="0.3"/>
+  <ellipse cx="50" cy="55" rx="32" ry="28" fill="#0f0f23"/>
+  <g>
+    <ellipse id="eye1" cx="38" cy="52" rx="5" ry="6" fill="#a855f7"/>
+    <circle id="highlight1" cx="39" cy="50" r="2" fill="#fff" opacity="0.9"/>
+    <ellipse id="eye2" cx="62" cy="52" rx="5" ry="6" fill="#a855f7"/>
+    <circle id="highlight2" cx="63" cy="50" r="2" fill="#fff" opacity="0.9"/>
+  </g>
+  <path d="M 47 62 L 50 66 L 53 62 Z" fill="#ec4899"/>
+  <path d="M 50 66 Q 44 71 40 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M 50 66 Q 56 71 60 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <g stroke="#0f0f23" stroke-width="0.8" opacity="0.5">
+    <line x1="28" y1="60" x2="12" y2="58"/>
+    <line x1="28" y1="64" x2="12" y2="65"/>
+    <line x1="28" y1="68" x2="12" y2="72"/>
+    <line x1="72" y1="60" x2="88" y2="58"/>
+    <line x1="72" y1="64" x2="88" y2="65"/>
+    <line x1="72" y1="68" x2="88" y2="72"/>
+  </g>
+  <circle cx="30" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+  <circle cx="70" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+</svg>`;
+
+// ── Welcome 区域的猫咪 SVG（带独立 ID）─
+const CAT_WELCOME_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradWelcome" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#bgGradWelcome)"/>
+  <path d="M 22 42 L 28 12 L 44 38 Z" fill="#0f0f23"/>
+  <path d="M 78 42 L 72 12 L 56 38 Z" fill="#0f0f23"/>
+  <path d="M 27 38 L 31 18 L 40 36 Z" fill="#ec4899" opacity="0.3"/>
+  <path d="M 73 38 L 69 18 L 60 36 Z" fill="#ec4899" opacity="0.3"/>
+  <ellipse cx="50" cy="55" rx="32" ry="28" fill="#0f0f23"/>
+  <g>
+    <ellipse id="welcomeEye1" cx="38" cy="52" rx="5" ry="6" fill="#a855f7"/>
+    <circle id="welcomeHighlight1" cx="39" cy="50" r="2" fill="#fff" opacity="0.9"/>
+    <ellipse id="welcomeEye2" cx="62" cy="52" rx="5" ry="6" fill="#a855f7"/>
+    <circle id="welcomeHighlight2" cx="63" cy="50" r="2" fill="#fff" opacity="0.9"/>
+  </g>
+  <path d="M 47 62 L 50 66 L 53 62 Z" fill="#ec4899"/>
+  <path d="M 50 66 Q 44 71 40 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M 50 66 Q 56 71 60 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <g stroke="#0f0f23" stroke-width="0.8" opacity="0.5">
+    <line x1="28" y1="60" x2="12" y2="58"/>
+    <line x1="28" y1="64" x2="12" y2="65"/>
+    <line x1="28" y1="68" x2="12" y2="72"/>
+    <line x1="72" y1="60" x2="88" y2="58"/>
+    <line x1="72" y1="64" x2="88" y2="65"/>
+    <line x1="72" y1="68" x2="88" y2="72"/>
+  </g>
+  <circle cx="30" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+  <circle cx="70" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+</svg>`;
+
+// ── 带眨眼动画的猫咪 SVG（用于消息中，使用 SMIL 动画）─
+const CAT_AVATAR_STATIC = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradMsg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#bgGradMsg)"/>
+  <path d="M 22 42 L 28 12 L 44 38 Z" fill="#0f0f23"/>
+  <path d="M 78 42 L 72 12 L 56 38 Z" fill="#0f0f23"/>
+  <path d="M 27 38 L 31 18 L 40 36 Z" fill="#ec4899" opacity="0.3"/>
+  <path d="M 73 38 L 69 18 L 60 36 Z" fill="#ec4899" opacity="0.3"/>
+  <ellipse cx="50" cy="55" rx="32" ry="28" fill="#0f0f23"/>
+  <ellipse cx="38" cy="52" rx="5" ry="6" fill="#a855f7">
+    <animate attributeName="ry" values="6;1;6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <circle cx="39" cy="50" r="2" fill="#fff" opacity="0.9">
+    <animate attributeName="opacity" values="0.9;0;0.9" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <ellipse cx="62" cy="52" rx="5" ry="6" fill="#a855f7">
+    <animate attributeName="ry" values="6;1;6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <circle cx="63" cy="50" r="2" fill="#fff" opacity="0.9">
+    <animate attributeName="opacity" values="0.9;0;0.9" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M 47 62 L 50 66 L 53 62 Z" fill="#ec4899"/>
+  <path d="M 50 66 Q 44 71 40 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M 50 66 Q 56 71 60 68" stroke="#0f0f23" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <g stroke="#0f0f23" stroke-width="0.8" opacity="0.5">
+    <line x1="28" y1="60" x2="12" y2="58"/>
+    <line x1="28" y1="64" x2="12" y2="65"/>
+    <line x1="28" y1="68" x2="12" y2="72"/>
+    <line x1="72" y1="60" x2="88" y2="58"/>
+    <line x1="72" y1="64" x2="88" y2="65"/>
+    <line x1="72" y1="68" x2="88" y2="72"/>
+  </g>
+  <circle cx="30" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+  <circle cx="70" cy="62" r="4" fill="#ec4899" opacity="0.15"/>
+</svg>`;
+
+// ── 眨眼动画 ──
+function blinkEyes() {
+  const eye1 = document.getElementById('eye1');
+  const eye2 = document.getElementById('eye2');
+  const highlight1 = document.getElementById('highlight1');
+  const highlight2 = document.getElementById('highlight2');
+  if (!eye1) return;
+  eye1.setAttribute('ry', '1');
+  eye2.setAttribute('ry', '1');
+  highlight1.setAttribute('opacity', '0');
+  highlight2.setAttribute('opacity', '0');
+  setTimeout(() => {
+    eye1.setAttribute('ry', '6');
+    eye2.setAttribute('ry', '6');
+    highlight1.setAttribute('opacity', '0.9');
+    highlight2.setAttribute('opacity', '0.9');
+    const nextBlink = 2000 + Math.random() * 2000;
+    setTimeout(blinkEyes, nextBlink);
+  }, 150);
+}
+setTimeout(blinkEyes, 1000);
+
+// ── Welcome 区域眨眼动画 ──
+function blinkWelcomeEyes() {
+  const eye1 = document.getElementById('welcomeEye1');
+  const eye2 = document.getElementById('welcomeEye2');
+  const highlight1 = document.getElementById('welcomeHighlight1');
+  const highlight2 = document.getElementById('welcomeHighlight2');
+  if (!eye1) return;
+  eye1.setAttribute('ry', '1');
+  eye2.setAttribute('ry', '1');
+  highlight1.setAttribute('opacity', '0');
+  highlight2.setAttribute('opacity', '0');
+  setTimeout(() => {
+    eye1.setAttribute('ry', '6');
+    eye2.setAttribute('ry', '6');
+    highlight1.setAttribute('opacity', '0.9');
+    highlight2.setAttribute('opacity', '0.9');
+    const nextBlink = 2000 + Math.random() * 2000;
+    setTimeout(blinkWelcomeEyes, nextBlink);
+  }, 150);
+}
+
+// ── 初始化 Welcome 图标 ──
+function initWelcomeIcon() {
+  const icon = document.getElementById('welcome-icon');
+  if (icon) {
+    icon.innerHTML = CAT_WELCOME_SVG;
+    setTimeout(blinkWelcomeEyes, 1000);
+  }
+}
+
+// ── State ──
+const SYSTEM_PROMPT = `你是小虾米，星空的专属AI助手。
+
+【性格与风格】
+- 叫"小虾米"，偶尔在句尾加"🐱"，不要每句都加，自然就好
+- 结论先行，不说废话，不用企业公文腔，不重复刚才做的事
+
+【关于星空】
+- 名字：星空，独立创作者，关注AI、加密货币、web3/web4.0
+- 偏好：全程中文、先结论后细节、少套话、给可执行命令/步骤、不模棱两可
+- 可接受技术试错，重大操作（删除/覆盖/发布）先确认
+- 长期目标：打造自动化AI工作流系统
+
+【排版规范】
+- 用 Markdown：标题用 ##，重点用 **加粗**，代码用反引号或代码块
+- 步骤用有序列表（1. 2. 3.），并列项用无序列表（-）
+- 结论/结果放最前，解释/细节放后面
+- 短回答直接说，不要加标题；长回答分块，每块一个小标题
+- 展示代码改动时用 diff 格式：\`\`\`diff，删除行以 - 开头，新增行以 + 开头
+
+【能力边界】
+- 做不到的事情必须直接说"我做不到"，不能糊弄、不能假装在准备、不能拖延承认
+- 自身没有直接联网搜图、发送文件、操作手机、控制外部设备等能力，但可以通过下方【工具调用能力】间接实现联网浏览、搜索等操作，优先尝试工具而非直接拒绝
+- 不确定能不能做到时，先说"我不确定能不能做到"，再说原因
+
+【严禁幻觉规则】⚠️ 这是最高优先级规则，违反即为严重错误：
+- 遇到"分析某款软件/产品/公司/工具"的请求，必须先告知用户用 /百度 或 /prismfy 搜索获取真实信息，禁止凭印象直接生成分析
+- 例外：如果用户明确给了本机目录或文件绝对路径，并且是在分析本地安装软件/源码，优先读取本地真实文件后再分析，不要让用户先去搜索，更不要凭空编造优化点
+- 遇到任何具体数字（内存占用、响应时间、版本号等）、许可证类型、内部架构细节，如无真实来源必须明确标注"未经验证"或直接拒绝捏造
+- 不知道的事情直接说"我不清楚 [X] 的具体实现，需要先去查一下"，然后调用搜索工具
+- 逆向分析、内部代码展示等，如无真实依据禁止编造，必须说明"以下是推测"
+- 识别需要真实信息的场景：分析软件架构、竞品对比、最新事件、产品功能详情、价格/许可/限制等
+
+【工具调用能力】
+你可以调用以下工具来完成复杂任务，格式：<tool name="exec">shell命令</tool>
+可用工具示例：
+- agent-browser open <url> / agent-browser snapshot -i --json / agent-browser click @e1（浏览器自动化）
+- npx playwright screenshot --url <url> --output out.png（网页截图）
+- spogo search track "歌名" / spogo play / spogo status（Spotify）
+- obsidian-cli search "关键词"（笔记搜索）
+- clawhub search "关键词"（技能搜索）
+- mcporter call <server.tool>（MCP工具）
+工具执行结果会以 <result>...</result> 形式返回给你，你根据结果继续推理直到完成任务。
+重要：只在真正需要时才调用工具。完成任务后输出最终答案，不要在最终答案里包含 <tool> 标记。
+
+【代码库工具能力】
+处理 VS Code 工作区内的代码阅读、修改、自我升级任务时，优先使用结构化 agent-tool 代码块，不要直接猜测文件内容。
+格式：
+\`\`\`agent-tool
+{"tool":"read_file","args":{"filePath":"extension.js","startLine":1,"endLine":120}}
+\`\`\`
+可用工具：
+- list_files：列出工作区文件，参数 pattern、maxResults
+- list_local_files：只读列出工作区外本地目录文件，参数 rootPath、pattern、maxResults
+- search_text：全文搜索，参数 query、include、maxResults、isRegexp、caseSensitive
+- search_local_text：只读搜索工作区外本地目录文本，参数 rootPath、query、include、maxResults、isRegexp、caseSensitive
+- read_file：按行读取文件，参数 filePath、startLine、endLine
+- read_local_file：只读按行读取工作区外本地文件，参数 rootPath、filePath、startLine、endLine
+- apply_patch：结构化修改代码，参数 changes（数组）
+- apply_local_patch：结构化修改工作区外本地目录中的文件，参数 rootPath、changes（数组）
+- get_diagnostics：读取当前 Problems，参数 filePath
+- list_tasks：查看当前工作区可直接执行的 VS Code 任务
+- run_task：按 label 执行已有 VS Code 任务，参数 label、source、timeoutMs
+- list_commands：查看当前项目可执行的验证命令和 package.json scripts
+- run_command：执行白名单内的验证命令，参数 command、args、timeoutMs
+
+apply_patch 的 changes 支持以下 action：
+\`\`\`agent-tool
+{"tool":"apply_patch","args":{"changes":[
+  {"action":"replace","filePath":"extension.js","search":"旧代码片段","replace":"新代码片段"},
+  {"action":"insert_after","filePath":"extension.js","search":"锚点代码","content":"\\n新增代码"},
+  {"action":"replace_lines","filePath":"extension.js","startLine":20,"endLine":24,"content":"新的多行内容"},
+  {"action":"insert_at_line","filePath":"extension.js","line":42,"content":"插入到第42行之前的内容\\n"},
+  {"action":"regex_replace","filePath":"extension.js","pattern":"foo(\\\\d+)","flags":"g","replace":"bar$1","expectedMatches":2},
+  {"action":"append","filePath":"src/demo.js","content":"\\n追加内容"},
+  {"action":"write","filePath":"src/demo.js","content":"完整新内容"},
+  {"action":"create","filePath":"src/newFile.js","content":"文件内容"},
+  {"action":"rename","filePath":"src/old.js","newFilePath":"src/new.js"}
+]}}
+\`\`\`
+
+apply_local_patch 与 apply_patch 支持同样的 changes action，但只允许修改 rootPath 范围内的文件：
+\`\`\`agent-tool
+{"tool":"apply_local_patch","args":{"rootPath":"D:/Program Files/CodeBuddy CN/CodeBuddy CN","changes":[
+  {"action":"replace","filePath":"extensions/genie/package.json","search":"旧值","replace":"新值"}
+]}}
+\`\`\`
+规则：
+- 要修改代码前，先用 read_file，跨文件任务先用 list_files 或 search_text
+- 如果用户给了类似 D:/xxx 或 D:\\\\xxx 这样的本机绝对路径，并要求分析本地软件/代码，先用 list_local_files / read_local_file / search_local_text 读取真实内容，再给分析
+- 分析本地绝对路径时，第一步优先调用 list_local_files 且 pattern 用 **/*；如果 count=0 但 topLevelEntries 或 interestingFiles 不为空，说明路径仍可读，只是当前匹配范围不对，不能据此断定“无法访问”
+- 如果第一次还没拿到关键文件，继续尝试 **/package.json、**/product*.json、**/README*、**/*.json，再决定读哪些文件
+- 同一轮本地路径分析里，如果后续 read_local_file 或 search_local_text 漏写 rootPath，可以沿用最近一次成功的本地根目录；不要因为缺少 rootPath 就直接放弃分析
+- 如果用户明确要求修复、升级、直接修改工作区外本地路径里的代码或配置，先读取目标文件确认内容，再调用 apply_local_patch；不要继续停留在只能分析
+- 对工作区外本地路径执行 delete、rename、write、create(overwrite=true) 这类高风险改动前，要先得到用户明确同意；普通 replace、insert、line-edit 修复可以直接执行
+- 优先使用 replace、insert_before、insert_after、replace_lines、insert_at_line、regex_replace、append、prepend 这种最小改动；只有整文件重写时才用 write
+- search 必须足够精确，replace/insert 默认只允许匹配 1 处；若确实需要全量替换，再显式传 all:true；必要时可加 expectedMatches
+- 按行修改前必须先用 read_file 读取对应行附近内容，避免基于过期行号误改
+- regex_replace 只在文本锚点难以稳定命中时使用；优先提供 pattern、flags 和 expectedMatches，避免正则误伤
+- 修改后优先调用 get_diagnostics 或 run_command 检查结果，再给最终答复
+- 如果工作区已经有合适的 task，优先用 list_tasks / run_task；只有没有合适 task 或需要更详细日志时，再用 list_commands / run_command
+- run_task 返回 exitCode、任务元信息和 diagnostics；详细输出以 VS Code 任务终端为准
+- 如果需要跑测试、lint、build、typecheck，先用 list_commands 看项目支持什么，再用 run_command
+- run_command 只用于验证，不要尝试执行发布、删除、安装依赖或长期运行命令
+- run_command 返回 exitCode 非 0 时，不要直接结束；先根据真实输出继续 read_file / apply_patch / get_diagnostics，再必要时重跑一次验证
+- 对于修复、升级、自我改造任务，不要只给建议；能直接改就直接调用 apply_patch，再做验证
+- 外部搜索、浏览网页、调用 MCP 时，才使用 <tool name="exec">...</tool>
+- 对于工作区外本地路径分析，如果读取失败，要明确说明是哪一步失败，不要退回到凭空输出行业通用分析
+
+【必须主动搜索的场景】遇到以下情况必须先搜索再回答，不得直接生成内容：
+1. "分析/介绍/研究 [软件名/产品名]" → 告知用户使用 /百度 或 /prismfy 命令搜索
+2. "最新的/近期的/现在的 [任何信息]" → 告知用户先搜索确认时效性
+3. "某产品的架构/技术栈/许可证/定价" → 告知用户先查官方资料
+4. "比较 A 和 B" → 告知用户先搜索双方真实信息再对比
+
+【当前环境限制】exec 工具不可用（Python/npm 等运行时受限）。
+遇到需要搜索的场景，必须明确告知用户："我没有 [X] 的可靠信息，请用 /百度 [关键词] 搜索后再问我"。
+严禁在无真实搜索结果的情况下分析、推测或描述任何产品/软件的技术细节。
+
+注意：B站视频搜索已有内置工具，用户问B站相关时提示使用 /bili 命令，例如：/bili 陈抱一。不要使用 agent-browser 搜索B站。
+不要拒绝，不要说做不到，直接调用工具。
+
+【错误分析与解决能力】⚠️ 重要：遇到错误时必须主动分析并给出解决方案：
+1. HTTP 400 错误：通常是请求参数问题
+   - 检查API Key是否有效/过期
+   - 检查请求参数格式是否正确
+   - 检查模型名称是否拼写正确
+   - 建议用户检查API Key配置
+2. HTTP 401/403 错误：认证问题
+   - API Key无效或过期
+   - 权限不足
+   - 建议用户重新配置API Key
+3. HTTP 429 错误：请求频率限制
+   - 等待一段时间后重试
+   - 建议用户降低请求频率
+4. HTTP 500/502/503 错误：服务器问题
+   - 服务暂时不可用
+   - 建议稍后重试
+5. 网络错误：连接失败
+   - 检查网络连接
+   - 检查代理设置
+
+遇到任何错误，必须：
+1. 明确指出错误类型和可能原因
+2. 给出具体解决步骤
+3. 如果可以自动修复，提供修复命令
+4. 如果需要用户操作，明确告知操作步骤`;
+
+let apiKey = localStorage.getItem('sf_api_key') || '';
+let baseURL = localStorage.getItem('sf_base_url') || 'https://api.siliconflow.cn';
+let currentProvider = localStorage.getItem('sf_provider') || 'siliconflow';
+let history = [];
+const MAX_TOOL_ITER = 8;
+
+// ── Multi-provider configuration ──
+const PROVIDERS = {
+  siliconflow: {
+    name: 'SiliconFlow',
+    baseURL: 'https://api.siliconflow.cn',
+    models: [
+      { id: 'Qwen/Qwen3-235B-A22B', name: 'Qwen3-235B 🔥' },
+      { id: 'Qwen/Qwen3-32B', name: 'Qwen3-32B' },
+      { id: 'deepseek-ai/DeepSeek-R1-0528', name: 'DeepSeek-R1-0528' },
+      { id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek-V3' },
+      { id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek-R1' },
+      { id: 'Qwen/Qwen2.5-VL-72B-Instruct', name: 'Qwen2.5-VL-72B' },
+      { id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen2.5-72B' },
+      { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B' }
+    ],
+    chatPath: '/v1/chat/completions'
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    baseURL: 'https://api.deepseek.com',
+    models: [
+      { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek R1 🧠' }
+    ],
+    chatPath: '/chat/completions'
+  },
+  qwen: {
+    name: '通义千问',
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode',
+    models: [
+      { id: 'qwen-turbo', name: 'Qwen Turbo ⚡' },
+      { id: 'qwen-plus', name: 'Qwen Plus' },
+      { id: 'qwen-max', name: 'Qwen Max 🚀' },
+      { id: 'qwen-max-longcontext', name: 'Qwen Max 长上下文' }
+    ],
+    chatPath: '/v1/chat/completions'
+  },
+  zhipu: {
+    name: '智谱GLM',
+    baseURL: 'https://open.bigmodel.cn/api/paas',
+    models: [
+      { id: 'glm-4', name: 'GLM-4' },
+      { id: 'glm-4-air', name: 'GLM-4 Air' },
+      { id: 'glm-4-flash', name: 'GLM-4 Flash ⚡' },
+      { id: 'glm-4-plus', name: 'GLM-4 Plus' }
+    ],
+    chatPath: '/v4/chat/completions'
+  },
+  moonshot: {
+    name: 'Moonshot',
+    baseURL: 'https://api.moonshot.cn',
+    models: [
+      { id: 'moonshot-v1-8k', name: 'Kimi 8K' },
+      { id: 'moonshot-v1-32k', name: 'Kimi 32K' },
+      { id: 'moonshot-v1-128k', name: 'Kimi 128K 📚' }
+    ],
+    chatPath: '/v1/chat/completions'
+  },
+  openai: {
+    name: 'OpenAI',
+    baseURL: 'https://api.openai.com',
+    models: [
+      { id: 'gpt-4o', name: 'GPT-4o 🎯' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo ⚡' }
+    ],
+    chatPath: '/v1/chat/completions'
+  }
+};
+
+function updateModelSelect() {
+  const provider = PROVIDERS[currentProvider];
+  const select = document.getElementById('model-select');
+  select.innerHTML = provider.models.map(m => 
+    `<option value="${m.id}">${m.name}</option>`
+  ).join('');
+  const savedModel = localStorage.getItem(`sf_model_${currentProvider}`);
+  if (savedModel && provider.models.some(m => m.id === savedModel)) {
+    select.value = savedModel;
+  }
+  localStorage.setItem('sf_provider', currentProvider);
+}
+
+document.getElementById('provider-select').value = currentProvider;
+document.getElementById('provider-select').onchange = function() {
+  currentProvider = this.value;
+  updateModelSelect();
+};
+updateModelSelect();
+window._pendingExecs = {};
+window._pendingAgentTools = {};
+window._activeAgentToolIds = new Set();
+window._agentCommandPanels = {};
+window._repairLoopGuard = null;
+function execSkillAsync(cmd) {
+  return new Promise(resolve => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2);
+    window._pendingExecs[id] = resolve;
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+  });
+}
+
+function execAgentToolAsync(tool, args = {}, handlers = {}) {
+  return new Promise(resolve => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2);
+    window._pendingAgentTools[id] = {
+      resolve,
+      onStream: handlers.onStream,
+      onDone: handlers.onDone
+    };
+    if (tool === 'run_command' || tool === 'run_task') {
+      window._activeAgentToolIds.add(id);
+    }
+    vscode.postMessage({ type: 'agentTool', tool, args, id });
+  });
+}
+
+function formatCommandLabel(args = {}) {
+  const command = args.command || 'command';
+  const argText = Array.isArray(args.args) ? args.args.join(' ') : '';
+  return `${command}${argText ? ' ' + argText : ''}`;
+}
+
+function formatTaskLabel(args = {}) {
+  const label = args.label || args.name || 'task';
+  const source = args.source ? ` [${args.source}]` : '';
+  return `${label}${source}`;
+}
+
+function buildAgentCommandFailureSummary(panel) {
+  const failedEntries = panel.entries.filter(entry => entry.status === 'failed' || entry.status === 'stopped');
+  if (!failedEntries.length) {
+    return '当前没有失败命令。';
+  }
+
+  return failedEntries.map(entry => {
+    const stderr = (entry.stderr || '').trim();
+    const fallback = (entry.error || entry.stdout || '（没有可用输出）').trim();
+    const output = (stderr || fallback).slice(-2000);
+    return [
+      `命令: ${entry.label}`,
+      `状态: ${entry.status}`,
+      `exitCode: ${entry.exitCode ?? '-'}`,
+      '输出:',
+      output
+    ].join('\n');
+  }).join('\n\n---\n\n');
+}
+
+function copyAgentCommandFailureSummary(panelId) {
+  const panel = window._agentCommandPanels[panelId];
+  if (!panel) return;
+  const summary = buildAgentCommandFailureSummary(panel);
+  navigator.clipboard.writeText(summary).then(() => {
+    showToast('已复制失败摘要');
+  }).catch(err => {
+    showToast('复制失败: ' + (err?.message || '未知错误'));
+  });
+}
+
+function copyAgentCommandStderr(panelId, index) {
+  const panel = window._agentCommandPanels[panelId];
+  const entry = panel?.entries?.[index];
+  if (!entry) return;
+  const stderr = (entry.stderr || '').trim() || (entry.error || '').trim() || '（没有 stderr 输出）';
+  navigator.clipboard.writeText(stderr).then(() => {
+    showToast('已复制 stderr');
+  }).catch(err => {
+    showToast('复制失败: ' + (err?.message || '未知错误'));
+  });
+}
+
+function createRepairLoopGuard() {
+  return {
+    totalFailures: 0,
+    consecutiveSameSignature: 0,
+    lastSignature: '',
+    signatureCounts: {},
+    categoryCounts: {},
+    recentFailures: []
+  };
+}
+
+function resetRepairLoopGuard() {
+  window._repairLoopGuard = createRepairLoopGuard();
+}
+
+function buildRepairFailureSignature(summary) {
+  const failure = summary?.failure || {};
+  const candidateFiles = Array.isArray(failure.candidateFiles) ? failure.candidateFiles.slice(0, 2).join(',') : '';
+  const command = summary.command
+    ? formatCommandLabel({ command: summary.command, args: summary.args || [] })
+    : formatTaskLabel({ label: summary.label, source: summary.source });
+  return `${failure.category || 'unknown'}|${candidateFiles}|${command}`;
+}
+
+function buildRepairLoopFallbackMessage(state, reason) {
+  const latest = state.recentFailures[0];
+  const failure = latest?.failure || {};
+  const candidateFiles = Array.isArray(failure.candidateFiles) && failure.candidateFiles.length
+    ? failure.candidateFiles.map(file => `- ${file}`).join('\n')
+    : '- 暂未定位到明确文件';
+  const attempts = state.recentFailures.slice(0, 3).map((item, index) => {
+    return `${index + 1}. ${item.command} · ${item.failure.category} · exitCode ${item.exitCode ?? '-'}`;
+  }).join('\n');
+  const diagTop = Array.isArray(latest?.summary?.diagnostics?.top) ? latest.summary.diagnostics.top.slice(0, 4) : [];
+  const diagText = diagTop.length
+    ? diagTop.map(item => `- ${item.filePath}:${item.line}:${item.column} ${item.message}`).join('\n')
+    : '- 当前没有额外 diagnostics';
+
+  return [
+    '## 自动修复已暂停',
+    '',
+    `原因：**${reason}**。继续自动重试大概率只会重复修改。`,
+    '',
+    `失败类型：**${failure.category || 'command_failure'}**（置信度：${failure.confidence || 'medium'}）`,
+    `建议动作：${failure.recommendedAction || '先读取报错文件并人工确认。'}`,
+    '',
+    '### 候选文件',
+    candidateFiles,
+    '',
+    '### 最近尝试',
+    attempts || '- 暂无记录',
+    '',
+    '### 关键诊断',
+    diagText,
+    '',
+    '> 现在更适合让模型基于这些信息给出最小修复方案，或者由你手动确认后再继续。'
+  ].join('\n');
+}
+
+function evaluateRepairLoopGuard(results) {
+  const guard = window._repairLoopGuard || createRepairLoopGuard();
+  let successSeen = false;
+  let latestFailure = null;
+
+  for (const entry of (results || [])) {
+    if (!entry?.success || (entry.tool !== 'run_command' && entry.tool !== 'run_task')) continue;
+
+    const summary = entry.tool === 'run_task'
+      ? summarizeRunTaskResultForPrompt(entry.result || {})
+      : summarizeRunCommandResultForPrompt(entry.result || {});
+    if (summary.exitCode === 0 && !summary.timedOut && !summary.cancelled) {
+      successSeen = true;
+      continue;
+    }
+
+    if (!summary.failure) continue;
+
+    const signature = buildRepairFailureSignature(summary);
+    guard.totalFailures += 1;
+    guard.signatureCounts[signature] = (guard.signatureCounts[signature] || 0) + 1;
+    guard.categoryCounts[summary.failure.category] = (guard.categoryCounts[summary.failure.category] || 0) + 1;
+    guard.consecutiveSameSignature = guard.lastSignature === signature ? guard.consecutiveSameSignature + 1 : 1;
+    guard.lastSignature = signature;
+
+    latestFailure = {
+      signature,
+      command: summary.command
+        ? formatCommandLabel({ command: summary.command, args: summary.args || [] })
+        : formatTaskLabel({ label: summary.label, source: summary.source }),
+      exitCode: summary.exitCode,
+      summary,
+      failure: summary.failure
+    };
+    guard.recentFailures.unshift(latestFailure);
+    guard.recentFailures = guard.recentFailures.slice(0, 5);
+  }
+
+  if (successSeen && !latestFailure) {
+    resetRepairLoopGuard();
+    return { shouldStop: false };
+  }
+
+  window._repairLoopGuard = guard;
+  if (!latestFailure) {
+    return { shouldStop: false };
+  }
+
+  let reason = '';
+  if (latestFailure.failure.category === 'cancelled') {
+    reason = '命令已被用户停止';
+  } else if (guard.consecutiveSameSignature >= 2) {
+    reason = '同一类失败已连续重复 2 次';
+  } else if ((guard.categoryCounts[latestFailure.failure.category] || 0) >= 3) {
+    reason = `同类失败 ${latestFailure.failure.category} 已累计出现 3 次`;
+  } else if (guard.totalFailures >= 4) {
+    reason = '当前自动修复轮次累计失败过多';
+  }
+
+  if (!reason) {
+    return { shouldStop: false };
+  }
+
+  return {
+    shouldStop: true,
+    message: buildRepairLoopFallbackMessage(guard, reason)
+  };
+}
+
+function pickLogHighlights(text, limit = 8) {
+  const lines = String(text || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) return [];
+
+  const preferred = lines.filter(line =>
+    /(error|failed|failure|exception|syntax|warning|traceback|cannot|unable|not found|missing|unexpected|E\d{3,}|TS\d{3,}|ERR_|\bat\b)/i.test(line)
+    || /\.[a-z]+:\d+/i.test(line)
+  );
+
+  const source = preferred.length ? preferred : lines;
+  return source.slice(-limit).map(line => line.slice(0, 240));
+}
+
+function extractCandidateFilesFromText(lines, limit = 8) {
+  const source = Array.isArray(lines) ? lines : [];
+  const files = [];
+  const patterns = [
+    /([\w./-]+\.(?:js|jsx|ts|tsx|json|css|html|md|mjs|cjs|py|java|go|rs))(?:[:(](\d+))?/ig,
+    /at\s+([\w./-]+\.(?:js|jsx|ts|tsx|mjs|cjs|py)):(\d+)/ig
+  ];
+
+  for (const line of source) {
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.exec(line)) !== null) {
+        const filePath = match[1];
+        if (!files.includes(filePath)) {
+          files.push(filePath);
+          if (files.length >= limit) return files;
+        }
+      }
+    }
+  }
+
+  return files;
+}
+
+function summarizeDiagnosticsForPrompt(diagnostics, limit = 8) {
+  const items = Array.isArray(diagnostics) ? diagnostics : [];
+  const errors = items.filter(item => item.severity === 'error');
+  const warnings = items.filter(item => item.severity === 'warning');
+
+  return {
+    total: items.length,
+    errors: errors.length,
+    warnings: warnings.length,
+    top: items.slice(0, limit).map(item => ({
+      filePath: item.filePath,
+      line: item.line,
+      column: item.column,
+      severity: item.severity,
+      source: item.source || '',
+      message: item.message
+    }))
+  };
+}
+
+function classifyRunCommandFailure(result = {}, diagnosticsSummary = {}, stderrHighlights = [], stdoutHighlights = []) {
+  const command = String(result.command || '').toLowerCase();
+  const text = [
+    result.error || '',
+    ...(stderrHighlights || []),
+    ...(stdoutHighlights || [])
+  ].join('\n');
+  const normalized = text.toLowerCase();
+  const diagTop = Array.isArray(diagnosticsSummary.top) ? diagnosticsSummary.top : [];
+  const diagSources = diagTop.map(item => String(item.source || '').toLowerCase());
+
+  const make = (category, recommendedAction, confidence = 'medium', why = '') => ({
+    category,
+    confidence,
+    recommendedAction,
+    why,
+    candidateFiles: [
+      ...new Set([
+        ...diagTop.map(item => item.filePath).filter(Boolean),
+        ...extractCandidateFilesFromText([...stderrHighlights, ...stdoutHighlights], 8)
+      ])
+    ].slice(0, 8)
+  });
+
+  if (result.cancelled) {
+    return make('cancelled', '命令被用户停止，不要继续自动修复，先说明当前停在什么阶段。', 'high', '命令执行被主动中断');
+  }
+
+  if (result.timedOut) {
+    return make('timeout', '优先缩小验证范围或改用更精确的命令；不要盲目重复执行同一长任务。', 'high', '命令执行超时');
+  }
+
+  if (/is not recognized|not recognized as an internal|enoent|command not found|could not determine executable/i.test(text)) {
+    return make('command_unavailable', '先检查 package.json scripts、工具安装状态或改用 list_commands 返回的可执行命令。', 'high', '命令本身不可用');
+  }
+
+  if (/cannot find module|module not found|cannot resolve module|package .* not found|missing package|requires a peer of/i.test(normalized)) {
+    return make('missing_dependency', '先确认依赖是否缺失；如果当前策略禁止安装依赖，就只指出缺失依赖并停止自动修复。', 'high', '日志显示缺少模块或包');
+  }
+
+  if (/syntaxerror|unexpected token|parsing error|unterminated|string literal|expected .* got|invalid or unexpected token/i.test(normalized)
+    || diagSources.some(source => /eslint|typescript|javascript/.test(source)) && diagTop.some(item => /syntax|parsing|unexpected token/i.test(String(item.message || '').toLowerCase()))) {
+    return make('syntax_error', '优先读取报错文件和对应行附近代码，先修语法，再重跑验证。', 'high', '日志或 diagnostics 命中语法错误特征');
+  }
+
+  if (/ts\d{3,}|type .* is not assignable|property .* does not exist|no overload matches|implicitly has an .* type/i.test(normalized)
+    || diagSources.some(source => /ts|typescript/.test(source))
+    || command.includes('typecheck')) {
+    return make('type_error', '优先根据 TypeScript diagnostics 修类型问题，必要时查定义和调用处。', 'high', '日志或 diagnostics 命中类型错误特征');
+  }
+
+  if (/eslint|lint|prettier|stylelint/i.test(normalized)
+    || diagSources.some(source => /eslint|lint/.test(source))
+    || command.includes('lint')) {
+    return make('lint_error', '优先修 lint 报错，不要做无关重构；先处理 diagnostics 里最前面的文件。', 'high', '日志或命令上下文显示为 lint 失败');
+  }
+
+  if (/\b(fail|failing|failed)\b.*\btest\b|expect\(|assert|snapshot|vitest|jest|mocha|ava|tap|pytest/i.test(normalized)
+    || command.includes('test')) {
+    return make('test_failure', '优先定位失败用例对应的文件和断言，再修逻辑，不要先改测试本身。', 'high', '日志或命令上下文显示为测试失败');
+  }
+
+  if (command.includes('build') || /build failed|rollup|vite|webpack|parcel|esbuild|tsup/i.test(normalized)) {
+    return make('build_failure', '优先看构建日志提到的入口文件和依赖，再修复导致构建失败的问题。', 'medium', '命令上下文显示为构建失败');
+  }
+
+  if (diagTop.length > 0) {
+    return make('diagnostic_failure', '优先按 diagnostics 的文件和行号修复首个 error，再重跑验证。', 'medium', '有明确 diagnostics，但日志类型不够集中');
+  }
+
+  return make('command_failure', '先根据 stderr 关键行缩小范围，必要时重新读取相关文件再修复。', 'low', '未命中特定失败模式');
+}
+
+function summarizeRunCommandResultForPrompt(result = {}) {
+  const stderrHighlights = pickLogHighlights(result.stderr, 8);
+  const stdoutHighlights = pickLogHighlights(result.stdout, 6);
+  const diagnostics = summarizeDiagnosticsForPrompt(result.diagnostics?.diagnostics || [], 8);
+
+  const summary = {
+    command: result.command,
+    args: Array.isArray(result.args) ? result.args : [],
+    exitCode: result.exitCode,
+    timedOut: !!result.timedOut,
+    cancelled: !!result.cancelled,
+    durationMs: result.durationMs,
+    diagnostics,
+    stderrHighlights,
+    stdoutHighlights: stderrHighlights.length ? stdoutHighlights.slice(0, 4) : stdoutHighlights,
+    hasStdout: !!String(result.stdout || '').trim(),
+    hasStderr: !!String(result.stderr || '').trim()
+  };
+
+  if (result.exitCode !== 0 || result.timedOut || result.cancelled) {
+    summary.failure = classifyRunCommandFailure(result, diagnostics, stderrHighlights, stdoutHighlights);
+  }
+
+  if (result.error && result.error !== '命令已停止') {
+    summary.error = result.error;
+  }
+
+  return summary;
+}
+
+function summarizeRunTaskResultForPrompt(result = {}) {
+  const diagnostics = summarizeDiagnosticsForPrompt(result.diagnostics?.diagnostics || [], 8);
+  const diagnosticHighlights = diagnostics.top.map(item => `${item.filePath}:${item.line}:${item.column} ${item.message}`);
+
+  const summary = {
+    label: result.label,
+    source: result.source || '',
+    taskType: result.taskType || '',
+    exitCode: result.exitCode,
+    timedOut: !!result.timedOut,
+    cancelled: !!result.cancelled,
+    durationMs: result.durationMs,
+    diagnostics
+  };
+
+  if (result.note) {
+    summary.note = result.note;
+  }
+
+  if (result.exitCode !== 0 || result.timedOut || result.cancelled) {
+    summary.failure = classifyRunCommandFailure({
+      command: result.label || result.taskType || 'task',
+      args: [],
+      timedOut: !!result.timedOut,
+      cancelled: !!result.cancelled,
+      error: result.error || result.note || ''
+    }, diagnostics, diagnosticHighlights, []);
+  }
+
+  return summary;
+}
+
+function isRecoverableAgentToolFailure(entry) {
+  if (!entry || entry.success) return false;
+
+  const tool = String(entry.tool || '');
+  const error = String(entry.error || '');
+
+  if (!['read_file', 'read_local_file'].includes(tool)) {
+    return false;
+  }
+
+  return /文件不存在|不是文件|文件路径超出|文件过大|二进制内容|需要提供 filePath/i.test(error);
+}
+
+function summarizeAgentToolPayload(entry) {
+  if (!entry?.success) {
+    return { tool: entry?.tool, error: entry?.error || '未知错误' };
+  }
+
+  if (entry.tool === 'run_command') {
+    return {
+      tool: entry.tool,
+      result: summarizeRunCommandResultForPrompt(entry.result || {})
+    };
+  }
+
+  if (entry.tool === 'run_task') {
+    return {
+      tool: entry.tool,
+      result: summarizeRunTaskResultForPrompt(entry.result || {})
+    };
+  }
+
+  if (entry.tool === 'get_diagnostics') {
+    const result = entry.result || {};
+    return {
+      tool: entry.tool,
+      result: summarizeDiagnosticsForPrompt(result.diagnostics || [], 8)
+    };
+  }
+
+  if (entry.tool === 'search_text') {
+    const result = entry.result || {};
+    return {
+      tool: entry.tool,
+      result: {
+        query: result.query,
+        count: result.count,
+        matches: Array.isArray(result.matches) ? result.matches.slice(0, 12) : []
+      }
+    };
+  }
+
+  if (entry.tool === 'search_local_text') {
+    const result = entry.result || {};
+    return {
+      tool: entry.tool,
+      result: {
+        rootPath: result.rootPath,
+        query: result.query,
+        count: result.count,
+        scannedFiles: result.scannedFiles,
+        truncated: !!result.truncated,
+        matches: Array.isArray(result.matches) ? result.matches.slice(0, 12) : []
+      }
+    };
+  }
+
+  if (entry.tool === 'list_files') {
+    const result = entry.result || {};
+    return {
+      tool: entry.tool,
+      result: {
+        pattern: result.pattern,
+        count: result.count,
+        files: Array.isArray(result.files) ? result.files.slice(0, 40) : []
+      }
+    };
+  }
+
+  if (entry.tool === 'list_local_files') {
+    const result = entry.result || {};
+    return {
+      tool: entry.tool,
+      result: {
+        rootPath: result.rootPath,
+        pattern: result.pattern,
+        count: result.count,
+        scannedFiles: result.scannedFiles,
+        truncated: !!result.truncated,
+        topLevelEntries: Array.isArray(result.topLevelEntries) ? result.topLevelEntries.slice(0, 20) : [],
+        interestingFiles: Array.isArray(result.interestingFiles) ? result.interestingFiles.slice(0, 20) : [],
+        files: Array.isArray(result.files) ? result.files.slice(0, 40) : []
+      }
+    };
+  }
+
+  if (entry.tool === 'apply_patch') {
+    const result = entry.result || {};
+    return {
+      tool: entry.tool,
+      result: {
+        success: !!result.success,
+        summary: result.summary || '',
+        results: Array.isArray(result.results) ? result.results.slice(0, 12).map(item => ({
+          success: !!item.success,
+          action: item.action,
+          filePath: item.filePath,
+          newFilePath: item.newFilePath,
+          preview: !!item.preview,
+          message: item.message || '',
+          error: item.error || '',
+          validation: item.validation ? summarizeDiagnosticsForPrompt(item.validation.diagnostics || [], 6) : undefined
+        })) : []
+      }
+    };
+  }
+
+  if (entry.tool === 'apply_local_patch') {
+    const result = entry.result || {};
+    return {
+      tool: entry.tool,
+      result: {
+        rootPath: result.rootPath || '',
+        success: !!result.success,
+        summary: result.summary || '',
+        rolledBack: !!result.rolledBack,
+        rollbackReason: result.rollbackReason || '',
+        rollback: result.rollback || undefined,
+        backupDir: result.backupDir || '',
+        backedUpFiles: Array.isArray(result.backedUpFiles) ? result.backedUpFiles.slice(0, 20) : [],
+        results: Array.isArray(result.results) ? result.results.slice(0, 12).map(item => ({
+          success: !!item.success,
+          action: item.action,
+          filePath: item.filePath,
+          newFilePath: item.newFilePath,
+          preview: !!item.preview,
+          message: item.message || '',
+          error: item.error || ''
+        })) : []
+      }
+    };
+  }
+
+  return {
+    tool: entry.tool,
+    result: entry.result
+  };
+}
+
+function renderAgentCommandProgress(bubble, baseText, panel) {
+  const statusTextMap = {
+    running: '执行中',
+    success: '通过',
+    failed: '失败',
+    stopped: '已停止'
+  };
+  const visibleEntries = panel.entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
+    if (panel.mode !== 'errors') return true;
+    return entry.status === 'failed' || entry.status === 'stopped' || !!(entry.stderr || '').trim();
+  });
+  const failedCount = panel.entries.filter(entry => entry.status === 'failed' || entry.status === 'stopped').length;
+
+  const html = visibleEntries.length
+    ? visibleEntries.map(({ entry, index }) => {
+      const stdout = (entry.stdout || '').trim();
+      const stderr = (entry.stderr || '').trim();
+      const showErrorOnly = panel.mode === 'errors';
+      const bodyBlocks = [];
+
+      if (showErrorOnly) {
+        if (stderr) {
+          bodyBlocks.push(`
+            <div class="command-stream-block">
+              <div class="command-stream-label">stderr</div>
+              <code class="command-stream-code stderr">${escapeHtml(stderr.slice(-5000))}</code>
+            </div>
+          `);
+        } else if (entry.status !== 'running') {
+          const fallback = stdout || entry.error || '（没有错误输出）';
+          bodyBlocks.push(`
+            <div class="command-stream-block">
+              <div class="command-stream-label">output</div>
+              <code class="command-stream-code">${escapeHtml(fallback.slice(-5000))}</code>
+            </div>
+          `);
+        }
+      } else {
+        if (stdout) {
+          bodyBlocks.push(`
+            <div class="command-stream-block">
+              <div class="command-stream-label">stdout</div>
+              <code class="command-stream-code">${escapeHtml(stdout.slice(-5000))}</code>
+            </div>
+          `);
+        }
+        if (stderr) {
+          bodyBlocks.push(`
+            <div class="command-stream-block">
+              <div class="command-stream-label">stderr</div>
+              <code class="command-stream-code stderr">${escapeHtml(stderr.slice(-5000))}</code>
+            </div>
+          `);
+        }
+        if (!stdout && !stderr) {
+          bodyBlocks.push(`
+            <div class="command-stream-block">
+              <div class="command-stream-label">output</div>
+              <code class="command-stream-code">（等待输出）</code>
+            </div>
+          `);
+        }
+      }
+
+      return `
+        <div class="command-entry">
+          <div class="command-entry-header">
+            <div class="command-entry-main">
+              <div class="command-entry-label">${escapeHtml(entry.label)}</div>
+              <div class="command-entry-meta">exitCode: ${entry.exitCode ?? '-'} · ${entry.durationText || (entry.status === 'running' ? '运行中' : '等待结束')}</div>
+            </div>
+            <span class="command-status ${entry.status}">${statusTextMap[entry.status] || '执行中'}</span>
+            <button class="command-toggle-btn" onclick="toggleAgentCommandEntry('${panel.id}', ${index})">${entry.expanded ? '收起' : '展开'}</button>
+          </div>
+          ${entry.expanded ? `<div class="command-entry-body"><div class="command-entry-actions"><button class="command-copy-btn" onclick="copyAgentCommandStderr('${panel.id}', ${index})" ${stderr || entry.error ? '' : 'disabled'}>复制 stderr</button></div>${bodyBlocks.join('')}</div>` : ''}
+        </div>
+      `;
+    }).join('')
+    : '<div class="command-panel-empty">当前没有可显示的错误输出。</div>';
+
+  const header = `
+    <div class="command-panel">
+      <div class="command-panel-toolbar">
+        <div>
+          <div class="command-panel-title">命令执行面板</div>
+          <div class="command-panel-count">${panel.entries.length} 条命令 · ${failedCount} 条失败</div>
+        </div>
+        <div class="command-panel-actions">
+          <button class="command-filter-btn ${panel.mode === 'all' ? 'active' : ''}" onclick="setAgentCommandPanelMode('${panel.id}', 'all')">全部输出</button>
+          <button class="command-filter-btn ${panel.mode === 'errors' ? 'active' : ''}" onclick="setAgentCommandPanelMode('${panel.id}', 'errors')">只看错误</button>
+          <button class="command-copy-btn" onclick="copyAgentCommandFailureSummary('${panel.id}')">复制失败摘要</button>
+        </div>
+      </div>
+      <div class="command-panel-list">${html}</div>
+    </div>
+  `;
+
+  bubble.innerHTML = (baseText ? renderMarkdown(baseText) : '') + header;
+  scrollBottom();
+}
+
+function setAgentCommandPanelMode(panelId, mode) {
+  const panel = window._agentCommandPanels[panelId];
+  if (!panel) return;
+  panel.mode = mode;
+  renderAgentCommandProgress(panel.bubble, panel.baseText, panel);
+}
+
+function toggleAgentCommandEntry(panelId, index) {
+  const panel = window._agentCommandPanels[panelId];
+  if (!panel || !panel.entries[index]) return;
+  panel.entries[index].expanded = !panel.entries[index].expanded;
+  renderAgentCommandProgress(panel.bubble, panel.baseText, panel);
+}
+
+// ── Ontology knowledge graph ──
+function getOntology() {
+  try { return JSON.parse(localStorage.getItem('vsc_ontology') || '{"entities":[],"relations":[]}'); }
+  catch { return { entities: [], relations: [] }; }
+}
+function saveOntology(data) {
+  try { localStorage.setItem('vsc_ontology', JSON.stringify(data)); } catch {}
+}
+function ontologyAddEntity(type, properties) {
+  const data = getOntology();
+  const id = 'e_' + Date.now();
+  data.entities.push({ id, type, properties, created: new Date().toISOString() });
+  saveOntology(data);
+  return id;
+}
+function ontologySearch(query) {
+  const { entities } = getOntology();
+  const q = query.toLowerCase();
+  return entities.filter(e => JSON.stringify(e.properties).toLowerCase().includes(q));
+}
+function buildOntologyPrompt(userMsg) {
+  const relevant = ontologySearch(userMsg);
+  if (!relevant.length) return '';
+  return '\n\n【知识库（与当前话题相关）】\n' +
+    relevant.slice(0, 5).map(e =>
+      `[${e.type}] ${Object.entries(e.properties).map(([k, v]) => `${k}:${v}`).join('，')}`
+    ).join('\n');
+}
+
+// ── AdMapix ──
+let admapixKey = localStorage.getItem('admapix_api_key') || '';
+
+// ── Gemini Image ──
+let geminiKey = localStorage.getItem('gemini_api_key') || '';
+
+// ── Maton API Gateway ──
+let matonKey = localStorage.getItem('maton_api_key') || '';
+let baiduKey = localStorage.getItem('baidu_api_key') || '';
+let prismfyKey = localStorage.getItem('prismfy_api_key') || '';
+
+// ── Self-improvement learnings ──
+function getLearnings() {
+  try { return JSON.parse(localStorage.getItem('vsc_learnings') || '[]'); } catch { return []; }
+}
+function saveLearning(entry) {
+  const learnings = getLearnings();
+  learnings.unshift(entry);
+  try { localStorage.setItem('vsc_learnings', JSON.stringify(learnings.slice(0, 100))); } catch {}
+}
+function buildLearningsPrompt() {
+  const learnings = getLearnings();
+  if (!learnings.length) return '';
+  return '\n\n【经验记录（供参考）】\n' +
+    learnings.slice(0, 10).map((l, i) => `${i + 1}. [${l.type}] ${l.summary}`).join('\n');
+}
+
+// ── Self-Evolution System (自我进化系统) ──
+const EVOLUTION_KEY = 'vsc_evolution';
+
+function getEvolutionData() {
+  try {
+    return JSON.parse(localStorage.getItem(EVOLUTION_KEY) || JSON.stringify({
+      errors: [],           // 错误记录
+      corrections: [],      // 用户纠正记录
+      goodPatterns: [],     // 好的回答模式
+      userPreferences: [],  // 用户偏好
+      knowledgeGaps: [],    // 知识盲区
+      stats: { totalChats: 0, goodResponses: 0, badResponses: 0 }
+    }));
+  } catch {
+    return { errors: [], corrections: [], goodPatterns: [], userPreferences: [], knowledgeGaps: [], stats: { totalChats: 0, goodResponses: 0, badResponses: 0 } };
+  }
+}
+
+function saveEvolutionData(data) {
+  try { localStorage.setItem(EVOLUTION_KEY, JSON.stringify(data)); } catch {}
+}
+
+// 记录错误
+function recordError(type, context, userFeedback) {
+  const data = getEvolutionData();
+  data.errors.unshift({
+    type,           // 错误类型：hallucination, wrong_command, misunderstanding, etc.
+    context,        // 错误上下文
+    userFeedback,   // 用户反馈
+    time: Date.now(),
+    count: 1
+  });
+  // 去重：相同错误合并计数
+  const unique = [];
+  data.errors.forEach(e => {
+    const existing = unique.find(u => u.type === e.type && u.context === e.context);
+    if (existing) existing.count++;
+    else unique.push(e);
+  });
+  data.errors = unique.slice(0, 50);
+  data.stats.badResponses++;
+  saveEvolutionData(data);
+}
+
+// 记录用户纠正
+function recordCorrection(original, corrected) {
+  const data = getEvolutionData();
+  data.corrections.unshift({
+    original,       // 原始错误内容
+    corrected,      // 用户纠正后的内容
+    time: Date.now()
+  });
+  data.corrections = data.corrections.slice(0, 50);
+  saveEvolutionData(data);
+  
+  // 同时作为学习记录
+  saveLearning({
+    type: '用户纠正',
+    summary: `"${original.slice(0,30)}..." → "${corrected.slice(0,30)}..."`,
+    time: Date.now()
+  });
+}
+
+// 记录好的回答模式
+function recordGoodPattern(pattern, context) {
+  const data = getEvolutionData();
+  data.goodPatterns.unshift({
+    pattern,        // 好的回答模式
+    context,        // 适用上下文
+    time: Date.now(),
+    uses: 1
+  });
+  // 去重合并
+  const unique = [];
+  data.goodPatterns.forEach(p => {
+    const existing = unique.find(u => u.pattern === p.pattern);
+    if (existing) existing.uses++;
+    else unique.push(p);
+  });
+  data.goodPatterns = unique.slice(0, 30);
+  data.stats.goodResponses++;
+  saveEvolutionData(data);
+}
+
+// 记录用户偏好
+function recordUserPreference(category, preference) {
+  const data = getEvolutionData();
+  // 移除同类旧偏好
+  data.userPreferences = data.userPreferences.filter(p => p.category !== category);
+  data.userPreferences.unshift({
+    category,       // 偏好类别：style, format, language, etc.
+    preference,     // 偏好内容
+    time: Date.now()
+  });
+  data.userPreferences = data.userPreferences.slice(0, 20);
+  saveEvolutionData(data);
+}
+
+// 检测知识盲区
+function detectKnowledgeGap(topic, question) {
+  const data = getEvolutionData();
+  data.knowledgeGaps.unshift({
+    topic,          // 未知主题
+    question,       // 用户问题
+    time: Date.now()
+  });
+  data.knowledgeGaps = data.knowledgeGaps.slice(0, 20);
+  saveEvolutionData(data);
+}
+
+// 生成进化提示词（注入到系统提示词中）
+function buildEvolutionPrompt() {
+  const data = getEvolutionData();
+  const parts = [];
+  
+  // 用户偏好
+  if (data.userPreferences.length > 0) {
+    parts.push('\n\n【用户已知偏好】\n' + 
+      data.userPreferences.slice(0, 5).map(p => `- [${p.category}] ${p.preference}`).join('\n'));
+  }
+  
+  // 需要避免的错误
+  if (data.errors.length > 0) {
+    const recentErrors = data.errors.filter(e => Date.now() - e.time < 7 * 24 * 3600 * 1000).slice(0, 5);
+    if (recentErrors.length > 0) {
+      parts.push('\n\n【需避免的错误】\n' + 
+        recentErrors.map(e => `- [${e.type}] ${e.context}（用户反馈：${e.userFeedback}）`).join('\n'));
+    }
+  }
+  
+  // 用户纠正历史
+  if (data.corrections.length > 0) {
+    const recentCorrections = data.corrections.slice(0, 3);
+    if (recentCorrections.length > 0) {
+      parts.push('\n\n【用户纠正历史】\n' + 
+        recentCorrections.map(c => `- 原文："${c.original.slice(0, 40)}..." → 纠正为："${c.corrected.slice(0, 40)}..."`).join('\n'));
+    }
+  }
+  
+  // 好的回答模式
+  if (data.goodPatterns.length > 0) {
+    const topPatterns = data.goodPatterns.sort((a, b) => b.uses - a.uses).slice(0, 3);
+    if (topPatterns.length > 0) {
+      parts.push('\n\n【高效回答模式】\n' + 
+        topPatterns.map(p => `- ${p.pattern}（已用${p.uses}次）`).join('\n'));
+    }
+  }
+  
+  // 知识盲区提醒
+  if (data.knowledgeGaps.length > 0) {
+    const recentGaps = data.knowledgeGaps.filter(g => Date.now() - g.time < 3 * 24 * 3600 * 1000).slice(0, 3);
+    if (recentGaps.length > 0) {
+      parts.push('\n\n【知识盲区提醒】\n以下主题你可能需要先搜索：\n' + 
+        recentGaps.map(g => `- ${g.topic}（问题：${g.question.slice(0, 30)}...）`).join('\n'));
+    }
+  }
+  
+  return parts.join('');
+}
+
+// 分析对话，自动提取学习点
+function analyzeConversation(userMsg, aiMsg) {
+  // 检测用户不满信号
+  const dissatisfactionSignals = ['不对', '错了', '不是', '不对吧', '改一下', '重来', '不好', '差评'];
+  const hasDissatisfaction = dissatisfactionSignals.some(s => userMsg.includes(s));
+  
+  if (hasDissatisfaction) {
+    // 尝试识别错误类型
+    if (userMsg.includes('不是') || userMsg.includes('不对')) {
+      recordError('misunderstanding', aiMsg.slice(0, 100), userMsg);
+    }
+  }
+  
+  // 检测用户纠正
+  const correctionPatterns = [
+    /应该是[「"'](.+?)["」']/,
+    /改为[「"'](.+?)["」']/,
+    /正确[的是]+[「"'](.+?)["」']/,
+    /其实[是为]+(.+)/
+  ];
+  for (const pattern of correctionPatterns) {
+    const match = userMsg.match(pattern);
+    if (match) {
+      recordCorrection(aiMsg.slice(0, 50), match[1]);
+      break;
+    }
+  }
+  
+  // 检测用户偏好
+  if (userMsg.includes('以后') && (userMsg.includes('都这样') || userMsg.includes('就这么做'))) {
+    recordUserPreference('style', userMsg);
+  }
+  
+  // 更新统计
+  const data = getEvolutionData();
+  data.stats.totalChats++;
+  saveEvolutionData(data);
+}
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:64px;left:50%;transform:translateX(-50%);' +
+    'background:var(--accent);color:#fff;padding:6px 16px;border-radius:12px;' +
+    'font-size:12px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none';
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = '1');
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2500);
+}
+let pendingImages = [];
+let pendingContext = null;
+let autoCtx = null;
+let abortCtrl = null;
+let isStreaming = false;
+let totalTokens = 0;
+let currentSessionId = null;
+let sessions = JSON.parse(localStorage.getItem('vsc_sessions') || '[]');
+// 启动时向 extension 请求持久化的历史（覆盖 localStorage fallback）
+vscode.postMessage({ type: 'requestSessions' });
+
+function isInternalHistoryMessage(message) {
+  if (!message) return false;
+  if (message.internal) return true;
+  const content = typeof message.content === 'string' ? message.content : '';
+  return content.startsWith('[工具返回]');
+}
+
+function sanitizeSessionMessages(messages) {
+  return (Array.isArray(messages) ? messages : []).filter(message => !isInternalHistoryMessage(message));
+}
+
+function sanitizeSessionsForStorage(rawSessions) {
+  return (Array.isArray(rawSessions) ? rawSessions : []).map(session => ({
+    ...session,
+    messages: sanitizeSessionMessages(session.messages)
+  }));
+}
+
+// ── Session management ──
+function saveSession() {
+  if (!currentSessionId || history.length === 0) return;
+  const storable = history.filter(m => !isInternalHistoryMessage(m)).map(m => ({
+    role: m.role,
+    content: typeof m.content === 'string' ? m.content : '[图片/代码消息]'
+  }));
+  const title = storable[0]?.content?.slice(0, 28) || '新对话';
+  const idx = sessions.findIndex(s => s.id === currentSessionId);
+  const entry = { id: currentSessionId, title, messages: storable, time: Date.now() };
+  if (idx >= 0) sessions[idx] = entry;
+  else sessions.unshift(entry);
+  try {
+    localStorage.setItem('vsc_sessions', JSON.stringify(sessions.slice(0, 50)));
+  } catch (e) {
+    // localStorage 空间不足时，丢弃最旧的几条再试
+    sessions = sessions.slice(0, 20);
+    try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+  }
+  localStorage.setItem('vsc_last_session_id', currentSessionId);
+  vscode.postMessage({ type: 'saveSessions', sessions: sessions.slice(0, 50), lastSessionId: currentSessionId });
+  renderDrawerList();
+}
+
+function renderDrawerList() {
+  const list = document.getElementById('drawer-list');
+  if (sessions.length === 0) {
+    list.innerHTML = '<div id="drawer-empty">还没有历史记录</div>';
+    return;
+  }
+  list.innerHTML = '';
+  sessions.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'drawer-item' + (s.id === currentSessionId ? ' active' : '');
+    item.innerHTML = `<span class="di-icon">💬</span><span class="di-title" style="flex:1;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.title)}</span><div class="di-actions"><button class="di-rename" title="重命名">✏</button><button class="di-del" title="删除">✕</button></div>`;
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('di-del') || e.target.classList.contains('di-rename')) return;
+      loadSession(s.id);
+      closeDrawer();
+    });
+    item.querySelector('.di-del').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteSession(s.id);
+    });
+    item.querySelector('.di-rename').addEventListener('click', e => {
+      e.stopPropagation();
+      startRename(item, s);
+    });
+    list.appendChild(item);
+  });
+}
+
+function startRename(item, s) {
+  const titleSpan = item.querySelector('.di-title');
+  const input = document.createElement('input');
+  input.className = 'di-title-input';
+  input.value = s.title;
+  titleSpan.replaceWith(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const newTitle = input.value.trim() || s.title;
+    s.title = newTitle;
+    const idx = sessions.findIndex(x => x.id === s.id);
+    if (idx >= 0) sessions[idx].title = newTitle;
+    try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+    renderDrawerList();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.removeEventListener('blur', commit); renderDrawerList(); }
+  });
+}
+
+function loadSession(id) {
+  const s = sessions.find(s => s.id === id);
+  if (!s) return;
+  currentSessionId = id;
+  history = [...sanitizeSessionMessages(s.messages)];
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+  history.forEach(m => {
+    if (m.role === 'user') addUserMessage(m.content, [], null);
+    else addAIMessageStatic(m.content);
+  });
+  renderDrawerList();
+}
+
+function deleteSession(id) {
+  sessions = sessions.filter(s => s.id !== id);
+  try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+  vscode.postMessage({ type: 'saveSessions', sessions, lastSessionId: currentSessionId });
+  if (currentSessionId === id) {
+    startNewChat();
+  } else {
+    renderDrawerList();
+  }
+}
+
+function startNewChat() {
+  saveSession();
+  history = [];
+  resetRepairLoopGuard();
+  currentSessionId = null;
+  localStorage.removeItem('vsc_last_session_id');
+  vscode.postMessage({ type: 'saveSessions', sessions, lastSessionId: null });
+  pendingImages = [];
+  pendingContext = null;
+  totalTokens = 0;
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('preview-area').innerHTML = '';
+  document.getElementById('token-count').textContent = '';
+  showWelcome();
+  setStatus('新对话开始了 🐱喵~');
+  renderDrawerList();
+}
+
+// ── Drawer ──
+function openDrawer() {
+  renderDrawerList();
+  document.getElementById('history-drawer').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('history-drawer').classList.remove('open');
+}
+document.getElementById('hist-btn').onclick = openDrawer;
+document.getElementById('drawer-close').onclick = closeDrawer;
+document.getElementById('drawer-overlay').onclick = closeDrawer;
+document.getElementById('drawer-new-btn').onclick = () => { startNewChat(); closeDrawer(); };
+
+// ── Init ──
+vscode.postMessage({ type: 'requestApiKey' });
+if (!apiKey) setTimeout(() => { if (!apiKey) showSetup(); }, 300);
+
+// ── VS Code message handler ──
+window.addEventListener('message', e => {
+  const msg = e.data;
+  if (msg.type === 'loadSessions') {
+    if (Array.isArray(msg.sessions) && msg.sessions.length > 0) {
+      sessions = sanitizeSessionsForStorage(msg.sessions);
+      try { localStorage.setItem('vsc_sessions', JSON.stringify(sessions)); } catch {}
+    }
+    const lastId = msg.lastSessionId || localStorage.getItem('vsc_last_session_id');
+    if (lastId && sessions.find(s => s.id === lastId)) {
+      if (!currentSessionId) loadSession(lastId);
+    } else {
+      renderDrawerList();
+    }
+  } else if (msg.type === 'codeContext') {
+    setPendingContext(msg.label, msg.code, msg.lang);
+  } else if (msg.type === 'autoContext') {
+    if (msg.clear) {
+      autoCtx = null;
+    } else {
+      autoCtx = { label: msg.label, code: msg.code, lang: msg.lang };
+    }
+    renderAutoCtxBar();
+  } else if (msg.type === 'loadApiKey') {
+    if (msg.key) {
+      apiKey = msg.key;
+      localStorage.setItem('sf_api_key', msg.key);
+      document.getElementById('setup-overlay').style.display = 'none';
+    }
+  } else if (msg.type === 'validationResult') {
+    const _fn = (msg.filePath || '').replace(/\\/g, '/').split('/').pop();
+    const _label = _fn || msg.lang || 'code';
+    showToast(msg.success ? `🔍 验证通过 (${_label})` : `🔍 验证失败 (${_label}): ${msg.message}`);
+    try {
+      if (msg.success) {
+        addValidationMessage(`✅ **语法验证通过** (${_label})`, true);
+        history.push({ role: 'user', content: `[验证结果] 代码已写入 ${_label}，语法检查通过。` });
+      } else {
+        addValidationMessage(`❌ **语法验证失败** (${_label})\n\n\`\`\`\n${msg.message || '语法错误'}\n\`\`\``, false);
+        history.push({ role: 'user', content: `[验证结果] 代码写入 ${_label} 后发现语法错误：${msg.message || '未知错误'}，请修复。` });
+      }
+      saveSession();
+    } catch(e) { showToast('验证气泡出错: ' + e.message); }
+  } else if (msg.type === 'applyCodeResult') {
+    if (msg.success) {
+      const fileInfo = msg.filePath ? ` (${msg.filePath.split('/').pop()})` : '';
+      showToast(`✅ 代码已写入${fileInfo}`);
+    } else {
+      showToast(`⚠️ ${msg.error || '应用失败，请先打开文件'}`);
+    }
+  } else if (msg.type === 'applyCodeBatchResult') {
+    if (msg.success) {
+      showToast(`✅ 批量修改完成: ${msg.summary || '所有文件已修改'}`);
+    } else {
+      const msgText = msg.error || msg.summary || '批量修改部分失败';
+      showToast(`⚠️ ${msgText}`);
+    }
+  } else if (msg.type === 'acceptCodeResult') {
+    // 重新启用所有验收按钮
+    document.querySelectorAll('.accept-btn:disabled').forEach(b => {
+      b.disabled = false;
+      b.textContent = '验收';
+    });
+
+    if (msg.success) {
+      showToast(`✅ 语法检查通过 (${msg.lang || 'JS'})`);
+    } else {
+      showToast(`⚠️ 语法错误: ${msg.message || '检查失败'}`);
+    }
+  } else if (msg.type === 'editorContext') {
+    if (msg.error) {
+      setStatus(msg.error, 'error');
+      addSystemHint(msg.error);
+    }
+  } else if (msg.type === 'agentToolStream') {
+    const pending = window._pendingAgentTools?.[msg.id];
+    pending?.onStream?.(msg);
+  } else if (msg.type === 'agentToolResult') {
+    const pending = window._pendingAgentTools?.[msg.id];
+    if (pending) {
+      pending.onDone?.(msg);
+      pending.resolve(msg);
+      delete window._pendingAgentTools[msg.id];
+    }
+    window._activeAgentToolIds.delete(msg.id);
+  } else if (msg.type === 'toolResponse' && msg.tool === 'generate-image') {
+    const b = window._imageBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      if (msg.error) {
+        b.innerHTML = renderMarkdown(`⚠️ 图片生成失败：${escapeHtml(msg.error)}`);
+      } else {
+        b.innerHTML = `<div style="font-size:12px;color:var(--text-dim);margin-bottom:6px">🎨 ${escapeHtml(msg.prompt || '')}</div>` +
+          `<img src="data:${msg.mimeType};base64,${msg.imageData}" style="max-width:100%;border-radius:8px;display:block" />`;
+        history.push({ role: 'assistant', content: `[已生成图片：${msg.prompt}]` });
+        saveSession();
+      }
+      window._imageBubble = null;
+      setStatus('就绪');
+      scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'browse') {
+    const b = window._browseBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.error ? `⚠️ ${escapeHtml(msg.error)}` : msg.result);
+      history.push({ role: 'assistant', content: msg.result || msg.error });
+      saveSession(); setStatus('就绪'); scrollBottom();
+      window._browseBubble = null;
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'maton-api') {
+    const b = window._matonBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.error ? `⚠️ ${escapeHtml(msg.error)}` : '```json\n' + msg.result + '\n```');
+      history.push({ role: 'assistant', content: msg.result || msg.error });
+      saveSession(); setStatus('就绪'); scrollBottom();
+      window._matonBubble = null;
+    }
+  } else if (msg.type === 'toolResponse' && (msg.tool === 'admapix-search' || msg.tool === 'admapix-deep')) {
+    const b = window._admapixBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.result);
+      window._admapixBubble = null;
+      setStatus('就绪');
+      history.push({ role: 'assistant', content: msg.result });
+      saveSession();
+      scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'search') {
+    if (pendingSearchEl) {
+      pendingSearchEl.classList.remove('streaming');
+      pendingSearchEl.innerHTML = renderMarkdown(msg.result);
+      pendingSearchEl = null;
+      setStatus('就绪');
+      history.push({ role: 'assistant', content: msg.result });
+      saveSession();
+      scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'baidu-search') {
+    const b = window._baiduBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      const text = msg.result?.error ? `⚠️ 百度搜索失败：${msg.result.error}` : `🔍 **百度搜索结果**\n\n${msg.result?.text || '无结果'}`;
+      b.innerHTML = renderMarkdown(text);
+      window._baiduBubble = null;
+      history.push({ role: 'assistant', content: text });
+      saveSession(); scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'prismfy-search') {
+    const b = window._prismfyBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      let text;
+      if (msg.result?.error) { text = `⚠️ Prismfy 搜索失败：${msg.result.error}`; }
+      else {
+        const results = msg.result?.json?.results || msg.result?.json || [];
+        if (Array.isArray(results) && results.length) {
+          text = `🔎 **多引擎搜索结果**\n\n` + results.slice(0, 8).map(r => `- [${r.title || r.url}](${r.url})\n  ${r.snippet || ''}`).join('\n');
+        } else { text = `🔎 **搜索结果**\n\n\`\`\`json\n${JSON.stringify(msg.result?.json, null, 2).slice(0, 2000)}\n\`\`\``; }
+      }
+      b.innerHTML = renderMarkdown(text);
+      window._prismfyBubble = null;
+      history.push({ role: 'assistant', content: text }); saveSession(); scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'bilibili-search') {
+    const b = window._bilibiliBubble;
+    if (b) {
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(msg.result || '⚠️ 未返回结果');
+      window._bilibiliBubble = null;
+      history.push({ role: 'assistant', content: msg.result }); saveSession(); scrollBottom();
+    }
+  } else if (msg.type === 'toolResponse' && msg.tool === 'exec-skill') {
+    // 模式1：agentic loop（Promise 回调）
+    if (window._pendingExecs?.[msg.id]) {
+      window._pendingExecs[msg.id](msg.result);
+      delete window._pendingExecs[msg.id];
+    }
+    // 模式2：slash command（UI 气泡更新）
+    const entry = (window._execBubbles || {})[msg.id];
+    if (entry) {
+      const { bubble, type } = entry;
+      bubble.classList.remove('streaming');
+      delete window._execBubbles[msg.id];
+      const { stdout, stderr, error } = msg.result || {};
+      let text;
+      if (error && !stdout) { text = `⚠️ 执行失败：${error}\n${stderr || ''}`; }
+      else {
+        const out = (stdout || '').trim() || stderr || '（无输出）';
+        const icons = { excel: '📗', word: '📘', spotify: '🎵', obsidian: '💎', mcp: '📦', 'skill-finder': '🔍', email: '📧', file: '📄' };
+        const icon = icons[type] || '⚡';
+        try {
+          if (type === 'excel') {
+            const json = JSON.parse(out);
+            const sheets = Object.keys(json);
+            text = sheets.map(s => {
+              const rows = json[s];
+              if (!rows.length) return `**${s}**：（空）`;
+              const header = rows[0].join(' | ');
+              const sep = rows[0].map(() => '---').join(' | ');
+              const body = rows.slice(1).map(r => r.join(' | ')).join('\n');
+              return `**Sheet: ${s}**\n\n| ${header} |\n| ${sep} |\n${rows.slice(1).map(r => '| ' + r.join(' | ') + ' |').join('\n')}`;
+            }).join('\n\n');
+          } else { text = `${icon} **结果**\n\n\`\`\`\n${out.slice(0, 3000)}\n\`\`\``; }
+        } catch { text = `${icon} **结果**\n\n\`\`\`\n${out.slice(0, 3000)}\n\`\`\``; }
+      }
+      bubble.innerHTML = renderMarkdown(text);
+      history.push({ role: 'assistant', content: text }); saveSession(); scrollBottom();
+    }
+  }
+});
+
+// ── Setup ──
+function showSetup() {
+  document.getElementById('setup-overlay').style.display = 'flex';
+  document.getElementById('base-url-input').value = baseURL === 'https://api.siliconflow.cn' ? '' : baseURL;
+  setTimeout(() => document.getElementById('api-key-input').focus(), 100);
+}
+document.getElementById('save-key-btn').onclick = () => {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  apiKey = key;
+  localStorage.setItem('sf_api_key', key);
+  const urlInput = document.getElementById('base-url-input').value.trim().replace(/\/$/, '');
+  baseURL = urlInput || 'https://api.siliconflow.cn';
+  localStorage.setItem('sf_base_url', baseURL);
+  vscode.postMessage({ type: 'saveApiKey', key });
+  document.getElementById('setup-overlay').style.display = 'none';
+  setStatus('API Key 已保存 🐱喵~');
+};
+document.getElementById('api-key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('save-key-btn').click();
+});
+function openSettings() {
+  document.getElementById('api-key-input').value = apiKey;
+  document.getElementById('base-url-input').value = baseURL === 'https://api.siliconflow.cn' ? '' : baseURL;
+  showSetup();
+}
+
+// ── Model ──
+const modelSelect = document.getElementById('model-select');
+modelSelect.onchange = () => {
+  localStorage.setItem(`sf_model_${currentProvider}`, modelSelect.value);
+};
+
+// ── Theme ──
+const themes = ['dark', 'light', 'ocean', 'forest'];
+let currentTheme = localStorage.getItem('sf_theme') || 'dark';
+document.documentElement.setAttribute('data-theme', currentTheme);
+
+const themeBtn = document.getElementById('theme-btn');
+const themePopup = document.getElementById('theme-popup');
+
+themeBtn.onclick = (e) => {
+  e.stopPropagation();
+  themePopup.classList.toggle('show');
+  updateThemeOptions();
+};
+
+function updateThemeOptions() {
+  themePopup.querySelectorAll('.theme-option').forEach(el => {
+    el.classList.toggle('active', el.dataset.theme === currentTheme);
+  });
+}
+
+themePopup.querySelectorAll('.theme-option').forEach(el => {
+  el.onclick = () => {
+    currentTheme = el.dataset.theme;
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('sf_theme', currentTheme);
+    themePopup.classList.remove('show');
+    updateThemeOptions();
+  };
+});
+
+document.addEventListener('click', (e) => {
+  if (!themePopup.contains(e.target) && e.target !== themeBtn) {
+    themePopup.classList.remove('show');
+  }
+});
+
+updateThemeOptions();
+
+// ── Export ──
+document.getElementById('export-btn').onclick = () => {
+  const sessions = JSON.parse(localStorage.getItem('vsc_sessions') || '[]');
+  const currentId = localStorage.getItem('vsc_last_session_id');
+  
+  // 导出格式选择
+  const format = prompt('导出格式：输入 1 导出Markdown，输入 2 导出JSON', '1');
+  
+  if (format === '1') {
+    // Markdown格式
+    let md = '# 小虾米AI对话记录\n\n';
+    md += `导出时间：${new Date().toLocaleString('zh-CN')}\n\n---\n\n`;
+    
+    sessions.forEach((session, idx) => {
+      md += `## 对话 ${idx + 1}\n\n`;
+      session.messages?.forEach(msg => {
+        const role = msg.role === 'user' ? '👤 用户' : '🐱 小虾米';
+        const content = Array.isArray(msg.content) 
+          ? msg.content.map(c => c.text || '').join('\n')
+          : msg.content;
+        md += `**${role}：**\n\n${content}\n\n`;
+      });
+      md += '---\n\n';
+    });
+    
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `小虾米对话_${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ 对话已导出为Markdown');
+  } else if (format === '2') {
+    // JSON格式
+    const json = {
+      exportTime: new Date().toISOString(),
+      sessions: sessions
+    };
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `小虾米对话_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ 对话已导出为JSON');
+  }
+};
+
+// ── New chat ──
+document.getElementById('new-chat-btn').onclick = startNewChat;
+
+function showWelcome() {
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = `
+  <div id="welcome">
+    <div class="w-icon" id="welcome-icon"></div>
+    <h2>你好，星空主人喵～</h2>
+    <p>我是小虾米，有什么可以帮你的呢？🐱喵~</p>
+    <div class="shortcuts">
+      <div class="shortcut" onclick="insertPrompt('解释这段代码的作用')">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span> 解释代码
+      </div>
+      <div class="shortcut" onclick="insertPrompt('帮我优化这段代码')">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> 优化代码
+      </div>
+      <div class="shortcut" onclick="insertPrompt('帮我找出并修复这段代码中的bug')">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span> Debug
+      </div>
+      <div class="shortcut" onclick="requestSelection()">
+        <span class="s-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span> 发送选中代码
+        <kbd>Ctrl+Shift+I</kbd>
+      </div>
+    </div>
+  </div>`;
+  initWelcomeIcon();
+}
+
+// ── Slash commands ──
+const SLASH_COMMANDS = [
+  { cmd: '/搜索', icon: '🌐', desc: '联网搜索实时信息', prompt: '/搜索 ' },
+  { cmd: '/解释', icon: '📖', desc: '解释代码作用和逻辑', prompt: '请详细解释这段代码的作用和逻辑' },
+  { cmd: '/修复', icon: '🐛', desc: '找出并修复 Bug', prompt: '帮我找出并修复代码中的 bug，并解释原因' },
+  { cmd: '/优化', icon: '⚡', desc: '优化代码性能和质量', prompt: '帮我优化这段代码，提升性能和可读性' },
+  { cmd: '/重构', icon: '🔨', desc: '重构代码结构', prompt: '帮我重构这段代码，改善代码结构和设计模式' },
+  { cmd: '/测试', icon: '🧪', desc: '生成单元测试', prompt: '帮我为这段代码生成完整的单元测试' },
+  { cmd: '/审查', icon: '🔍', desc: '代码审查', prompt: '帮我审查这段代码，指出潜在问题和改进建议' },
+  { cmd: '/安全', icon: '🔒', desc: '安全检查', prompt: '帮我检查这段代码的安全漏洞和风险' },
+  { cmd: '/性能', icon: '📈', desc: '性能分析', prompt: '分析这段代码的性能瓶颈并给出优化建议' },
+  { cmd: '/文档', icon: '📝', desc: '生成注释和文档', prompt: '帮我为这段代码生成详细的注释和文档说明' },
+  { cmd: '/翻译', icon: '🌐', desc: '翻译注释为中文', prompt: '把代码中的英文注释全部翻译成中文' },
+  { cmd: '/补全', icon: '✨', desc: '智能补全代码', prompt: '根据上下文帮我补全这段代码' },
+  { cmd: '/类型', icon: '🏷️', desc: '添加类型定义', prompt: '帮我为这段代码添加TypeScript类型定义' },
+  { cmd: '/API', icon: '🔌', desc: '生成API文档', prompt: '为这个函数生成API文档和使用示例' },
+  { cmd: '/错误处理', icon: '⚠️', desc: '添加错误处理', prompt: '为这段代码添加完善的错误处理机制' },
+  { cmd: '/查看记录', icon: '📚', desc: '查看自动记录的经验', prompt: '/查看记录' },
+  { cmd: '/画图', icon: '🎨', desc: 'AI 生成图片（需 Gemini Key）', prompt: '/画图 ' },
+  { cmd: '/找素材', icon: '🎯', desc: '搜索广告素材（需AdMapix Key）', prompt: '/找素材 ' },
+  { cmd: '/广告分析', icon: '📊', desc: '深度分析App广告策略', prompt: '/广告分析 ' },
+  { cmd: '/记住', icon: '🧠', desc: '记住一条知识到知识库', prompt: '/记住 ' },
+  { cmd: '/查询', icon: '🔎', desc: '查询知识库中的实体', prompt: '/查询 ' },
+  { cmd: '/知识库', icon: '🗂️', desc: '查看全部知识库内容', prompt: '/知识库' },
+  { cmd: '/浏览', icon: '🌐', desc: '打开网页并读取内容', prompt: '/浏览 ' },
+  { cmd: '/maton', icon: '🔗', desc: '调用第三方API（需 Maton Key）', prompt: '/maton ' },
+  { cmd: '/百度', icon: '🔍', desc: '百度AI搜索（需 Baidu Key）', prompt: '/百度 ' },
+  { cmd: '/bili', icon: '📺', desc: '搜索B站最新视频', prompt: '/bili ' },
+  { cmd: '/prismfy', icon: '🔎', desc: '多引擎搜索Google/Reddit/GitHub（需Key）', prompt: '/prismfy ' },
+  { cmd: '/读Excel', icon: '📗', desc: '读取 Excel 文件内容', prompt: '/读Excel ' },
+  { cmd: '/读Word', icon: '📘', desc: '读取 Word 文档内容', prompt: '/读Word ' },
+  { cmd: '/播放', icon: '🎵', desc: 'Spotify 搜索/播放（需 spogo）', prompt: '/播放 ' },
+  { cmd: '/笔记', icon: '💎', desc: '搜索 Obsidian 笔记', prompt: '/笔记 ' },
+  { cmd: '/mcp', icon: '📦', desc: '调用 MCP 工具（需 mcporter）', prompt: '/mcp ' },
+  { cmd: '/找技能', icon: '🔍', desc: '搜索 ClawHub 技能', prompt: '/找技能 ' },
+  { cmd: '/邮件', icon: '📧', desc: '收发邮件（需配置IMAP/SMTP）', prompt: '/邮件 ' },
+  { cmd: '/读文件', icon: '📄', desc: '读取任意文件内容', prompt: '/读文件 ' },
+  { cmd: '/进化状态', icon: '🧬', desc: '查看自我进化统计', prompt: '/进化状态' },
+  { cmd: '/清空进化', icon: '🗑️', desc: '清空进化数据重新开始', prompt: '/清空进化' },
+  { cmd: '/纠正', icon: '✏️', desc: '纠正我的回答帮我学习', prompt: '/纠正 ' },
+  { cmd: '/偏好', icon: '⚙️', desc: '设置你的偏好', prompt: '/偏好 ' },
+];
+let pendingSearchEl = null;
+let cmdPopupOpen = false;
+let cmdSelectedIndex = 0;
+const cmdPopup = document.getElementById('cmd-popup');
+
+function showCmdPopup(query) {
+  const q = query.toLowerCase();
+  const filtered = SLASH_COMMANDS.filter(c => c.cmd.includes(q) || c.desc.includes(q) || q === '/');
+  if (filtered.length === 0) { hideCmdPopup(); return; }
+  if (cmdSelectedIndex >= filtered.length) cmdSelectedIndex = 0;
+  cmdPopupOpen = true;
+  cmdPopup.innerHTML = filtered.map((c, i) =>
+    `<div class="cmd-item${i === cmdSelectedIndex ? ' selected' : ''}" data-prompt="${escapeHtml(c.prompt)}">
+      <span class="cmd-name">${c.cmd}</span><span>${c.icon}</span><span class="cmd-desc">${c.desc}</span>
+    </div>`
+  ).join('');
+  cmdPopup.querySelectorAll('.cmd-item').forEach(item => {
+    item.addEventListener('mousedown', e => { e.preventDefault(); selectCmd(item.dataset.prompt); });
+  });
+  cmdPopup.style.display = 'block';
+}
+function hideCmdPopup() {
+  cmdPopupOpen = false; cmdSelectedIndex = 0;
+  cmdPopup.style.display = 'none';
+}
+function selectCmd(prompt) {
+  const val = inputEl.value;
+  const slashIdx = val.lastIndexOf('/');
+  inputEl.value = slashIdx !== -1 ? val.slice(0, slashIdx) + prompt : prompt;
+  inputEl.dispatchEvent(new Event('input'));
+  inputEl.focus(); hideCmdPopup();
+}
+
+// ── Input ──
+const inputEl = document.getElementById('input');
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  const val = inputEl.value;
+  const slashIdx = val.lastIndexOf('/');
+  if (slashIdx !== -1 && (slashIdx === 0 || val[slashIdx - 1] === '\n')) {
+    showCmdPopup(val.slice(slashIdx));
+  } else {
+    hideCmdPopup();
+  }
+});
+inputEl.addEventListener('keydown', e => {
+  if (cmdPopupOpen) {
+    const items = cmdPopup.querySelectorAll('.cmd-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      cmdSelectedIndex = (cmdSelectedIndex + 1) % items.length;
+      items.forEach((el, i) => el.classList.toggle('selected', i === cmdSelectedIndex));
+      items[cmdSelectedIndex].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      cmdSelectedIndex = (cmdSelectedIndex - 1 + items.length) % items.length;
+      items.forEach((el, i) => el.classList.toggle('selected', i === cmdSelectedIndex));
+      items[cmdSelectedIndex].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      const sel = items[cmdSelectedIndex];
+      if (sel) selectCmd(sel.dataset.prompt);
+    } else if (e.key === 'Escape') {
+      hideCmdPopup();
+    }
+    return;
+  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+inputEl.addEventListener('blur', () => setTimeout(hideCmdPopup, 150));
+
+// ── Paste image ──
+inputEl.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      e.preventDefault();
+      readImageFile(item.getAsFile());
+    }
+  }
+});
+
+document.getElementById('img-input').addEventListener('change', e => {
+  for (const f of e.target.files) readImageFile(f);
+  e.target.value = '';
+});
+
+// ── Drag & drop (images + code files) ──
+const inputBox = document.getElementById('input-box');
+inputBox.addEventListener('dragover', e => { e.preventDefault(); inputBox.classList.add('dragover'); });
+inputBox.addEventListener('dragleave', e => { if (!inputBox.contains(e.relatedTarget)) inputBox.classList.remove('dragover'); });
+inputBox.addEventListener('drop', e => {
+  e.preventDefault(); inputBox.classList.remove('dragover');
+  for (const file of e.dataTransfer.files) {
+    if (file.type.startsWith('image/')) readImageFile(file);
+    else if (isCodeFile(file.name)) readCodeFile(file);
+  }
+});
+function isCodeFile(name) {
+  return /\.(js|ts|jsx|tsx|py|java|c|cpp|h|go|rs|rb|php|cs|html|css|json|md|sh|sql|vue|yaml|yml|xml|txt)$/i.test(name);
+}
+function getLangFromName(name) {
+  const m = {js:'javascript',ts:'typescript',jsx:'javascript',tsx:'typescript',py:'python',java:'java',c:'c',cpp:'cpp',h:'c',go:'go',rs:'rust',rb:'ruby',php:'php',cs:'csharp',html:'html',css:'css',json:'json',md:'markdown',sh:'bash',sql:'sql',vue:'vue',yaml:'yaml',yml:'yaml',xml:'xml'};
+  return m[name.split('.').pop().toLowerCase()] || 'text';
+}
+function readCodeFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => setPendingContext(file.name, ev.target.result, getLangFromName(file.name));
+  reader.readAsText(file, 'utf-8');
+}
+
+// ── Code file input ──
+document.getElementById('file-input').addEventListener('change', e => {
+  for (const f of e.target.files) readCodeFile(f);
+  e.target.value = '';
+});
+
+function readImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    pendingImages.push({ dataUrl, type: file.type });
+    renderPreviewArea();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Code context ──
+function requestSelection() {
+  vscode.postMessage({ type: 'getEditor' });
+}
+function requestFile() {
+  vscode.postMessage({ type: 'getFile' });
+}
+function setPendingContext(label, code, lang) {
+  pendingContext = { label, code, lang };
+  renderPreviewArea();
+}
+
+// ── Preview area ──
+function renderPreviewArea() {
+  const area = document.getElementById('preview-area');
+  area.innerHTML = '';
+
+  pendingImages.forEach((img, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-preview';
+    wrap.innerHTML = `<img src="${img.dataUrl}"><button class="remove-img" onclick="removeImage(${i})">×</button>`;
+    area.appendChild(wrap);
+  });
+
+  if (pendingContext) {
+    const chip = document.createElement('div');
+    chip.className = 'ctx-chip';
+    chip.innerHTML = `📎 ${escapeHtml(pendingContext.label)}<button class="remove-chip" onclick="removeContext()">×</button>`;
+    area.appendChild(chip);
+  }
+}
+function removeImage(i) {
+  pendingImages.splice(i, 1);
+  renderPreviewArea();
+}
+function removeContext() {
+  pendingContext = null;
+  renderPreviewArea();
+}
+
+function renderAutoCtxBar() {
+  const bar = document.getElementById('auto-ctx-bar');
+  if (!autoCtx) {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  const langShort = (autoCtx.lang || 'txt').slice(0, 4).toUpperCase();
+  bar.style.display = 'flex';
+  bar.innerHTML = `<div class="auto-ctx-chip"><span class="lang-badge">${escapeHtml(langShort)}</span><span class="chip-label">${escapeHtml(autoCtx.label)}</span><button class="remove-auto" onclick="dismissAutoCtx()" title="移除">×</button></div>`;
+}
+function dismissAutoCtx() {
+  autoCtx = null;
+  renderAutoCtxBar();
+}
+
+// ── Insert prompt ──
+function insertPrompt(text) {
+  inputEl.value = text;
+  inputEl.focus();
+  inputEl.dispatchEvent(new Event('input'));
+}
+
+// ── Send ──
+const sendBtn = document.getElementById('send-btn');
+sendBtn.onclick = () => {
+  if (isStreaming) { stopStreaming(); return; }
+  sendMessage();
+};
+
+function handleSearch(query) {
+  if (!currentSessionId) currentSessionId = Date.now().toString();
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+  addUserMessage(`/搜索 ${query}`, [], null, null);
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  const bubble = addAIMessage();
+  bubble.textContent = '搜索中...';
+  pendingSearchEl = bubble;
+  setStatus('搜索中...', 'thinking');
+  vscode.postMessage({ type: 'tool', tool: 'search', query });
+}
+
+async function sendMessage() {
+  if (!apiKey) { showSetup(); return; }
+  const text = inputEl.value.trim();
+  if (!text && !pendingImages.length && !pendingContext) return;
+
+  // Intercept /查看记录 command
+  if (text === '/查看记录') {
+    inputEl.value = '';
+    const learnings = getLearnings();
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    if (!learnings.length) {
+      bubble.innerHTML = renderMarkdown('📚 暂无记录的经验。');
+    } else {
+      const content = '📚 **已记录的经验**\n\n' +
+        learnings.map((l, i) =>
+          `${i + 1}. **[${l.type}]** ${l.summary}\n   *${new Date(l.time).toLocaleString('zh-CN')}*`
+        ).join('\n\n');
+      bubble.innerHTML = renderMarkdown(content);
+    }
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /进化状态 command
+  if (text === '/进化状态') {
+    inputEl.value = '';
+    const data = getEvolutionData();
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    const stats = data.stats;
+    const recentErrors = data.errors.filter(e => Date.now() - e.time < 7 * 24 * 3600 * 1000).length;
+    const recentGaps = data.knowledgeGaps.filter(g => Date.now() - g.time < 3 * 24 * 3600 * 1000).length;
+    bubble.innerHTML = renderMarkdown(`🧬 **自我进化状态报告**
+
+**统计数据：**
+- 总对话数：${stats.totalChats}
+- 好评数：${stats.goodResponses} 👍
+- 差评数：${stats.badResponses} 👎
+- 好评率：${stats.totalChats > 0 ? ((stats.goodResponses / stats.totalChats) * 100).toFixed(1) : 0}%
+
+**学习能力：**
+- 记录的错误：${data.errors.length} 条（本周 ${recentErrors} 条）
+- 用户纠正：${data.corrections.length} 条
+- 好的回答模式：${data.goodPatterns.length} 条
+- 用户偏好：${data.userPreferences.length} 条
+- 知识盲区：${data.knowledgeGaps.length} 个（近期 ${recentGaps} 个）
+
+**能力提升建议：**
+${data.knowledgeGaps.length > 0 ? '- 有知识盲区需要搜索学习' : ''}
+${data.errors.length > 3 ? '- 有多次错误需要反思' : ''}
+${data.corrections.length > 0 ? '- 已从用户纠正中学习' : ''}
+${data.goodPatterns.length > 3 ? '- 已掌握多种高效回答模式' : ''}
+
+使用 \`/纠正 [内容]\` 可以教我改进，使用 \`/清空进化\` 可以重置。`);
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /清空进化 command
+  if (text === '/清空进化') {
+    inputEl.value = '';
+    if (confirm('确定要清空所有进化数据吗？这将重置我的学习能力。')) {
+      localStorage.removeItem(EVOLUTION_KEY);
+      showToast('🗑️ 进化数据已清空');
+      const bubble = addAIMessage();
+      bubble.classList.remove('streaming');
+      bubble.innerHTML = renderMarkdown('✅ 进化数据已清空，我将重新开始学习。');
+      scrollBottom();
+    }
+    return;
+  }
+
+  // Intercept /纠正 command
+  if (/^\/纠正\s+/.test(text)) {
+    inputEl.value = '';
+    const correction = text.replace(/^\/纠正\s+/, '').trim();
+    if (!correction) return;
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    
+    // 记录纠正
+    if (history.length > 1) {
+      const lastAI = history[history.length - 1]?.content || '';
+      recordCorrection(lastAI.slice(0, 50), correction);
+    }
+    
+    bubble.innerHTML = renderMarkdown(`✅ **已收到纠正！**
+
+你说的是：**${escapeHtml(correction)}**
+
+我已经记住了这个纠正，下次遇到类似情况我会改进。谢谢你的教导！🐱`);
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /偏好 command
+  if (/^\/偏好\s+/.test(text)) {
+    inputEl.value = '';
+    const preference = text.replace(/^\/偏好\s+/, '').trim();
+    if (!preference) return;
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    
+    // 解析偏好（格式：类别:内容 或直接内容）
+    const parts = preference.split(':');
+    if (parts.length >= 2) {
+      recordUserPreference(parts[0].trim(), parts.slice(1).join(':').trim());
+    } else {
+      recordUserPreference('general', preference);
+    }
+    
+    bubble.innerHTML = renderMarkdown(`✅ **已记录偏好！**
+
+你的偏好：**${escapeHtml(preference)}**
+
+我会在后续对话中遵循这个偏好。🐱`);
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /知识库 command
+  if (text === '/知识库') {
+    inputEl.value = '';
+    const { entities } = getOntology();
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    if (!entities.length) {
+      bubble.innerHTML = renderMarkdown('🗂️ 知识库为空。用 `/记住 [内容]` 添加。');
+    } else {
+      const grouped = {};
+      entities.forEach(e => { (grouped[e.type] = grouped[e.type] || []).push(e); });
+      let content = '🗂️ **知识库全览**\n\n';
+      Object.entries(grouped).forEach(([type, items]) => {
+        content += `**${type}**（${items.length}条）\n`;
+        items.forEach((e, i) => {
+          content += `${i + 1}. ${Object.entries(e.properties).map(([k, v]) => `${k}:${v}`).join('，')}\n`;
+        });
+        content += '\n';
+      });
+      bubble.innerHTML = renderMarkdown(content);
+    }
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /查询 command
+  if (/^\/查询\s+/.test(text)) {
+    inputEl.value = '';
+    const keyword = text.replace(/^\/查询\s+/, '').trim();
+    const results = ontologySearch(keyword);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    if (!results.length) {
+      bubble.innerHTML = renderMarkdown(`🔎 知识库中没有找到与 **${escapeHtml(keyword)}** 相关的内容。`);
+    } else {
+      let content = `🔎 **查询"${keyword}"的结果**（${results.length}条）\n\n`;
+      results.forEach((e, i) => {
+        content += `${i + 1}. **[${e.type}]** ${Object.entries(e.properties).map(([k, v]) => `${k}:${v}`).join('，')}\n`;
+      });
+      bubble.innerHTML = renderMarkdown(content);
+    }
+    scrollBottom();
+    return;
+  }
+
+  // ── AdMapix helper ──
+  function admapixSetupMsg(bubble) {
+    bubble.classList.remove('streaming');
+    bubble.innerHTML = renderMarkdown(
+      '🔑 **需要先配置 AdMapix API Key**\n\n' +
+      '1. 前往 [admapix.com](https://www.admapix.com) 注册账号\n' +
+      '2. 登录后在控制台创建 API Key\n' +
+      '3. 把 Key 粘贴到下方输入框，回车保存\n\n' +
+      '> 输入格式：`/admapix-key sk-xxxxxx`'
+    );
+  }
+
+  // Intercept /gemini-key command
+  if (/^\/gemini-key\s+/.test(text)) {
+    inputEl.value = '';
+    geminiKey = text.replace(/^\/gemini-key\s+/, '').trim();
+    localStorage.setItem('gemini_api_key', geminiKey);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    bubble.innerHTML = renderMarkdown('✅ Gemini API Key 已保存，现在可以使用 `/画图` 了。');
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /画图 command
+  if (/^\/画图\s+/.test(text)) {
+    inputEl.value = '';
+    if (!geminiKey) {
+      const b = addAIMessage();
+      b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown(
+        '🔑 **需要先配置 Gemini API Key**\n\n' +
+        '1. 前往 [Google AI Studio](https://aistudio.google.com) 获取 API Key\n' +
+        '2. 粘贴到下方：`/gemini-key AIza...`'
+      );
+      scrollBottom();
+      return;
+    }
+    const prompt = text.replace(/^\/画图\s+/, '').trim();
+    // 解析分辨率参数 --4K / --2K / --1K
+    const resMatch = prompt.match(/--([124]K)\b/i);
+    const resolution = resMatch ? resMatch[1].toUpperCase() : '1K';
+    const cleanPrompt = prompt.replace(/--[124]K\b/gi, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🎨 正在生成图片（${resolution}）：**${escapeHtml(cleanPrompt)}**\n\n*预计需要 10~30 秒...*`);
+    vscode.postMessage({ type: 'tool', tool: 'generate-image', prompt: cleanPrompt, resolution, apiKey: geminiKey });
+    window._imageBubble = bubble;
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /maton-key command
+  if (/^\/maton-key\s+/.test(text)) {
+    inputEl.value = '';
+    matonKey = text.replace(/^\/maton-key\s+/, '').trim();
+    localStorage.setItem('maton_api_key', matonKey);
+    const b = addAIMessage(); b.classList.remove('streaming');
+    b.innerHTML = renderMarkdown('✅ Maton API Key 已保存，现在可以使用 `/maton` 调用第三方服务了。');
+    scrollBottom(); return;
+  }
+
+  // Intercept /maton command
+  if (/^\/maton\s+/.test(text)) {
+    inputEl.value = '';
+    if (!matonKey) {
+      const b = addAIMessage(); b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown('🔑 **需要先配置 Maton API Key**\n\n1. 注册 [maton.ai](https://maton.ai) 并复制 API Key\n2. 输入：`/maton-key your_key`');
+      scrollBottom(); return;
+    }
+    const args = text.replace(/^\/maton\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔗 调用 API：\`${escapeHtml(args)}\`\n\n*请求中...*`);
+    vscode.postMessage({ type: 'tool', tool: 'maton-api', args, apiKey: matonKey });
+    window._matonBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /浏览 command
+  if (/^\/浏览\s+/.test(text)) {
+    inputEl.value = '';
+    const url = text.replace(/^\/浏览\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🌐 正在打开：${escapeHtml(url)}\n\n*加载中...*`);
+    vscode.postMessage({ type: 'tool', tool: 'browse', url });
+    window._browseBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /admapix-key command
+  if (/^\/admapix-key\s+/.test(text)) {
+    inputEl.value = '';
+    const key = text.replace(/^\/admapix-key\s+/, '').trim();
+    admapixKey = key;
+    localStorage.setItem('admapix_api_key', key);
+    const bubble = addAIMessage();
+    bubble.classList.remove('streaming');
+    bubble.innerHTML = renderMarkdown('✅ AdMapix API Key 已保存，现在可以使用 `/找素材` 和 `/广告分析` 了。');
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /找素材 command
+  if (/^\/找素材\s+/.test(text)) {
+    inputEl.value = '';
+    if (!admapixKey) { const b = addAIMessage(); admapixSetupMsg(b); scrollBottom(); return; }
+    const keyword = text.replace(/^\/找素材\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🎯 正在搜索 **${escapeHtml(keyword)}** 相关素材...`);
+    vscode.postMessage({ type: 'tool', tool: 'admapix-search', query: keyword, apiKey: admapixKey });
+    window._admapixBubble = bubble;
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /广告分析 command
+  if (/^\/广告分析\s+/.test(text)) {
+    inputEl.value = '';
+    if (!admapixKey) { const b = addAIMessage(); admapixSetupMsg(b); scrollBottom(); return; }
+    const appName = text.replace(/^\/广告分析\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📊 正在深度分析 **${escapeHtml(appName)}** 的广告策略，预计需要 1~3 分钟...`);
+    vscode.postMessage({ type: 'tool', tool: 'admapix-deep', query: appName, apiKey: admapixKey });
+    window._admapixBubble = bubble;
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /记住 command
+  if (/^\/记住\s+/.test(text)) {
+    inputEl.value = '';
+    const content = text.replace(/^\/记住\s+/, '').trim();
+    if (!content) return;
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown('🧠 正在提取结构化信息...');
+
+    const extractPrompt =
+      `从以下内容提取一个结构化实体，返回JSON：\n{"type":"Person|Project|Task|Note|Organization|Device|Event","properties":{"key":"value",...},"summary":"一句话描述"}\n` +
+      `内容：${content}\n只输出JSON，不要其他文字。`;
+    try {
+      const res = await fetch(`${baseURL}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'Qwen/Qwen2.5-7B-Instruct',
+          messages: [{ role: 'user', content: extractPrompt }],
+          max_tokens: 200, temperature: 0
+        })
+      });
+      const data = await res.json();
+      const raw = (data.choices?.[0]?.message?.content || '').replace(/```json\n?|\n?```/g, '').trim();
+      const json = JSON.parse(raw);
+      if (json.type && json.properties) {
+        const id = ontologyAddEntity(json.type, json.properties);
+        bubble.classList.remove('streaming');
+        bubble.innerHTML = renderMarkdown(
+          `✅ 已记入知识库\n\n**类型：** ${json.type}\n**内容：** ${json.summary || Object.entries(json.properties).map(([k,v])=>`${k}:${v}`).join('，')}\n**ID：** \`${id}\``
+        );
+        showToast('🧠 知识库已更新');
+      } else {
+        bubble.innerHTML = renderMarkdown('⚠️ 未能解析结构化内容，请换一种描述方式。');
+      }
+    } catch (e) {
+      bubble.innerHTML = renderMarkdown(`⚠️ 提取失败：${escapeHtml(e.message)}`);
+    }
+    bubble.classList.remove('streaming');
+    scrollBottom();
+    return;
+  }
+
+  // Intercept /baidu-key command
+  if (/^\/baidu-key\s+/.test(text)) {
+    baiduKey = text.replace(/^\/baidu-key\s+/, '').trim();
+    localStorage.setItem('baidu_api_key', baiduKey);
+    inputEl.value = '';
+    const b = addAIMessage(); b.classList.remove('streaming');
+    b.innerHTML = renderMarkdown('✅ 百度 API Key 已保存，现在可以使用 `/百度` 搜索了。');
+    scrollBottom(); return;
+  }
+
+  // Intercept /百度 command
+  if (/^\/百度\s+/.test(text)) {
+    inputEl.value = '';
+    if (!baiduKey) {
+      const b = addAIMessage(); b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown('🔑 **需要先配置百度 API Key**\n\n1. 前往 [console.bce.baidu.com](https://console.bce.baidu.com) 获取 Key\n2. 输入：`/baidu-key your_key`');
+      scrollBottom(); return;
+    }
+    const query = text.replace(/^\/百度\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /百度 Python异步编程'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔍 正在百度搜索：**${escapeHtml(query)}**...`);
+    vscode.postMessage({ type: 'tool', tool: 'baidu-search', query, apiKey: baiduKey });
+    window._baiduBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /prismfy-key command
+  if (/^\/prismfy-key\s+/.test(text)) {
+    prismfyKey = text.replace(/^\/prismfy-key\s+/, '').trim();
+    localStorage.setItem('prismfy_api_key', prismfyKey);
+    inputEl.value = '';
+    const b = addAIMessage(); b.classList.remove('streaming');
+    b.innerHTML = renderMarkdown('✅ Prismfy API Key 已保存，现在可以使用 `/prismfy` 多引擎搜索了。');
+    scrollBottom(); return;
+  }
+
+  // Intercept /prismfy command
+  if (/^\/prismfy\s+/.test(text)) {
+    inputEl.value = '';
+    if (!prismfyKey) {
+      const b = addAIMessage(); b.classList.remove('streaming');
+      b.innerHTML = renderMarkdown('🔑 **需要先配置 Prismfy API Key**\n\n输入：`/prismfy-key your_key`');
+      scrollBottom(); return;
+    }
+    const query = text.replace(/^\/prismfy\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /prismfy Claude API rate limit'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔎 正在多引擎搜索：**${escapeHtml(query)}**...`);
+    vscode.postMessage({ type: 'tool', tool: 'prismfy-search', query, apiKey: prismfyKey });
+    window._prismfyBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept /bili command
+  if (/^\/bili\s+/.test(text)) {
+    inputEl.value = '';
+    let query = text.replace(/^\/bili\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /bili 陈抱一'); return; }
+    // 如果是自然语言指令，提取核心搜索词（如"帮我搜索陈抱一的最新视频"→"陈抱一"）
+    const nlExtract = query.match(/(?:搜索?|查找?|找)[一下]?\s*(.+?)(?:的(?:最新)?(?:视频|内容|作品|直播))?$/u);
+    if (nlExtract && nlExtract[1] && nlExtract[1].length < query.length) query = nlExtract[1].trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📺 正在搜索B站最新视频：**${escapeHtml(query)}**...`);
+    vscode.postMessage({ type: 'tool', tool: 'bilibili-search', query });
+    window._bilibiliBubble = bubble;
+    scrollBottom(); return;
+  }
+
+  // Intercept natural language B站 search
+  {
+    const biliMatch = text.match(/(?:去|帮我去?|在|用)?[Bb]站(?:搜索?|找|查)[一下]?\s*(.+?)(?:的)?(?:最新)?(?:视频)?$/u)
+      || text.match(/搜[一下]?(.+?)(?:的)?(?:最新)?视频.*[Bb]站/u)
+      || text.match(/[Bb]站.*?["""](.+?)["""]/u);
+    if (biliMatch) {
+      const query = (biliMatch[1] || '').trim();
+      if (query) {
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.innerHTML = renderMarkdown(`📺 正在搜索B站最新视频：**${escapeHtml(query)}**...`);
+        vscode.postMessage({ type: 'tool', tool: 'bilibili-search', query });
+        window._bilibiliBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // Intercept /读Excel command
+  if (/^\/读Excel\s+/.test(text)) {
+    inputEl.value = '';
+    const path = text.replace(/^\/读Excel\s+/, '').trim();
+    if (!path) { addSystemHint('请输入文件路径，例如: /读Excel C:/data.xlsx'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📗 正在读取 Excel：**${escapeHtml(path)}**...`);
+    const cmd = `uv run --with openpyxl python -c "import openpyxl,json; wb=openpyxl.load_workbook(r'${path.replace(/'/g, "\\'")}'); out={}; [out.update({s:[[str(c.value) if c.value is not None else '' for c in r] for r in wb[s].iter_rows()]}) for s in wb.sheetnames]; print(json.dumps(out,ensure_ascii=False))"`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'excel' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /读Word command
+  if (/^\/读Word\s+/.test(text)) {
+    inputEl.value = '';
+    const path = text.replace(/^\/读Word\s+/, '').trim();
+    if (!path) { addSystemHint('请输入文件路径，例如: /读Word C:/doc.docx'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📘 正在读取 Word：**${escapeHtml(path)}**...`);
+    const cmd = `uv run --with python-docx python -c "from docx import Document; doc=Document(r'${path.replace(/'/g, "\\'")}'); print('\\n'.join([p.text for p in doc.paragraphs]))"`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'word' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /播放 command
+  if (/^\/播放\s+/.test(text)) {
+    inputEl.value = '';
+    const args = text.replace(/^\/播放\s+/, '').trim();
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🎵 正在操作 Spotify：**${escapeHtml(args)}**...`);
+    const cmd = `spogo search track "${args.replace(/"/g, '\\"')}" 2>&1 || spotify_player search "${args.replace(/"/g, '\\"')}" 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'spotify' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /笔记 command
+  if (/^\/笔记\s+/.test(text)) {
+    inputEl.value = '';
+    const query = text.replace(/^\/笔记\s+/, '').trim();
+    if (!query) { addSystemHint('请输入搜索关键词，例如: /笔记 项目规划'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`💎 正在搜索 Obsidian 笔记：**${escapeHtml(query)}**...`);
+    const cmd = `obsidian-cli search "${query.replace(/"/g, '\\"')}" 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'obsidian' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /mcp command
+  if (/^\/mcp\s+/.test(text)) {
+    inputEl.value = '';
+    const args = text.replace(/^\/mcp\s+/, '').trim();
+    if (!args) { addSystemHint('例如: /mcp list  或  /mcp call linear.list_issues limit=5'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📦 正在执行 MCP：**${escapeHtml(args)}**...`);
+    const cmd = `mcporter ${args} 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'mcp' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /找技能 command
+  if (/^\/找技能\s+/.test(text)) {
+    inputEl.value = '';
+    const query = text.replace(/^\/找技能\s+/, '').trim();
+    if (!query) { addSystemHint('请输入关键词，例如: /找技能 翻译'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`🔍 正在搜索 ClawHub 技能：**${escapeHtml(query)}**...`);
+    const cmd = `clawhub search "${query.replace(/"/g, '\\"')}" --limit 10 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'skill-finder' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /邮件 command
+  if (/^\/邮件/.test(text)) {
+    inputEl.value = '';
+    const args = text.replace(/^\/邮件\s*/, '').trim() || 'inbox';
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📧 正在操作邮件：**${escapeHtml(args)}**...`);
+    const cmd = `node "%USERPROFILE%/.codex/skills/imap-smtp-email/scripts/email.js" ${args} 2>&1`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'email' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /读文件 command
+  if (/^\/读文件\s+/.test(text)) {
+    inputEl.value = '';
+    const filePath = text.replace(/^\/读文件\s+/, '').trim();
+    if (!filePath) { addSystemHint('请输入文件路径，例如: /读文件 C:/Users/me/notes.txt'); return; }
+    addUserMessage(text);
+    const bubble = addAIMessage();
+    bubble.innerHTML = renderMarkdown(`📄 正在读取：**${escapeHtml(filePath)}**...`);
+    const cmd = `node -e "try{const fs=require('fs');const c=fs.readFileSync(${JSON.stringify(filePath)},'utf8');process.stdout.write(c.slice(0,8000)+(c.length>8000?'\\n...(已截取前8000字)':'')}catch(e){process.stdout.write('错误：'+e.message)}"`;
+    const id = Date.now().toString();
+    vscode.postMessage({ type: 'tool', tool: 'exec-skill', cmd, id });
+    window._execBubbles = window._execBubbles || {}; window._execBubbles[id] = { bubble, type: 'file' };
+    scrollBottom(); return;
+  }
+
+  // Intercept /搜索 command
+  if (/^\/搜索\s+/.test(text)) {
+    const query = text.replace(/^\/搜索\s+/, '').trim();
+    if (query) { handleSearch(query); return; }
+    addSystemHint('请输入搜索关键词，例如: /搜索 Python教程');
+    return;
+  }
+
+  // === 自然语言识别：所有搜索和工具命令 ===
+  
+  // 自然语言：通用搜索
+  {
+    const searchMatch = text.match(/^(?:帮我?|请)?(?:搜索?|查找?|查|搜|收集|整理|汇总|获取)[一下]?\s*(.+?)(?:的信息?|的资料|的资讯)?$/u)
+      || text.match(/^(?:我想?|要)?(?:查|搜|了解|找|收集|整理)[一下]?\s*(.+?)(?:的)?(?:信息|资料|相关内容|资讯)?$/u);
+    if (searchMatch) {
+      const query = (searchMatch[1] || '').trim();
+      if (query && query.length > 1) {
+        handleSearch(query);
+        return;
+      }
+    }
+  }
+
+  // 自然语言：百度搜索
+  {
+    const baiduMatch = text.match(/^(?:帮我去?|用)?百度(?:搜索?|查|找)[一下]?\s*(.+?)(?:的)?(?:信息|资料)?$/u)
+      || text.match(/^(?:在|去)?百度上?(?:搜索?|查|找)[一下]?\s*(.+?)$/u);
+    if (baiduMatch) {
+      const query = (baiduMatch[1] || '').trim();
+      if (query && query.length > 1) {
+        if (!baiduKey) {
+          const b = addAIMessage(); b.classList.remove('streaming');
+          b.innerHTML = renderMarkdown('🔑 **需要先配置百度 API Key**\n\n1. 前往 [console.bce.baidu.com](https://console.bce.baidu.com) 获取 Key\n2. 输入：`/baidu-key your_key`');
+          scrollBottom(); return;
+        }
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.innerHTML = renderMarkdown(`🔍 正在百度搜索：**${escapeHtml(query)}**...`);
+        vscode.postMessage({ type: 'tool', tool: 'baidu-search', query, apiKey: baiduKey });
+        window._baiduBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // 自然语言：Prismfy多引擎搜索
+  {
+    const prismfyMatch = text.match(/^(?:帮我去?|用)?prismfy(?:搜索?|查|找)[一下]?\s*(.+?)$/u)
+      || text.match(/^(?:用|在)?多引擎(?:搜索?|查|找)[一下]?\s*(.+?)$/u);
+    if (prismfyMatch) {
+      const query = (prismfyMatch[1] || '').trim();
+      if (query && query.length > 1) {
+        if (!prismfyKey) {
+          const b = addAIMessage(); b.classList.remove('streaming');
+          b.innerHTML = renderMarkdown('🔑 **需要先配置 Prismfy API Key**\n\n输入：`/prismfy-key your_key`');
+          scrollBottom(); return;
+        }
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.innerHTML = renderMarkdown(`🔎 正在多引擎搜索：**${escapeHtml(query)}**...`);
+        vscode.postMessage({ type: 'tool', tool: 'prismfy-search', query, apiKey: prismfyKey });
+        window._prismfyBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // 自然语言：找广告素材
+  {
+    const adMatch = text.match(/^(?:帮我?|请)?(?:找|搜索|查)[一下]?(.+?)(?:的)?(?:广告)?素材$/u)
+      || text.match(/^(?:广告)?素材(?:搜索?|找|查)[一下]?\s*(.+?)$/u);
+    if (adMatch) {
+      const query = (adMatch[1] || adMatch[2] || '').trim();
+      if (query && query.length > 1) {
+        if (!admapixKey) { const b = addAIMessage(); admapixSetupMsg(b); scrollBottom(); return; }
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.innerHTML = renderMarkdown(`🎯 正在搜索 **${escapeHtml(query)}** 的广告素材...`);
+        vscode.postMessage({ type: 'tool', tool: 'admapix-search', keyword: query, apiKey: admapixKey });
+        window._admapixBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // 自然语言：广告分析
+  {
+    const analysisMatch = text.match(/^(?:帮我?|请)?(?:分析|研究)[一下]?(.+?)(?:的)?(?:广告策略?|投放策略|推广策略)$/u)
+      || text.match(/^(.+?)的(?:广告|投放|推广)(?:策略)?分析$/u);
+    if (analysisMatch) {
+      const appName = (analysisMatch[1] || analysisMatch[2] || '').trim();
+      if (appName && appName.length > 1) {
+        if (!admapixKey) { const b = addAIMessage(); admapixSetupMsg(b); scrollBottom(); return; }
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.innerHTML = renderMarkdown(`📊 正在深度分析 **${escapeHtml(appName)}** 的广告策略，预计需要 1~3 分钟...`);
+        vscode.postMessage({ type: 'tool', tool: 'admapix-deep', query: appName, apiKey: admapixKey });
+        window._admapixBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // 自然语言：画图
+  {
+    const drawMatch = text.match(/^(?:帮我?|请)?画[一张]?图[：:]?\s*(.+?)$/u)
+      || text.match(/^(?:帮我?|请)?生成[一张]?(?:图片?|图像)[：:]?\s*(.+?)$/u)
+      || text.match(/^(?:AI|ai)?画[一下]?\s*(.+?)$/u);
+    if (drawMatch) {
+      const prompt = (drawMatch[1] || drawMatch[2] || drawMatch[3] || '').trim();
+      if (prompt && prompt.length > 2) {
+        const geminiKey = localStorage.getItem('gemini_api_key');
+        if (!geminiKey) {
+          const b = addAIMessage(); b.classList.remove('streaming');
+          b.innerHTML = renderMarkdown('🔑 **需要先配置 Gemini API Key**\n\n输入：`/gemini-key your_key`');
+          scrollBottom(); return;
+        }
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.innerHTML = renderMarkdown(`🎨 正在生成图片：**${escapeHtml(prompt)}**...`);
+        vscode.postMessage({ type: 'tool', tool: 'generate-image', prompt, resolution: '1K', apiKey: geminiKey });
+        window._imageBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // 自然语言：浏览网页
+  {
+    const browseMatch = text.match(/^(?:帮我?|请)?(?:打开|访问|浏览)[一下]?\s*(https?:\/\/\S+)$/u)
+      || text.match(/^(?:看看|查看)\s*(https?:\/\/\S+)(?:的内容)?$/u);
+    if (browseMatch) {
+      const url = (browseMatch[1] || browseMatch[2] || '').trim();
+      if (url) {
+        inputEl.value = '';
+        addUserMessage(text);
+        const bubble = addAIMessage();
+        bubble.textContent = '🌐 正在加载页面...';
+        vscode.postMessage({ type: 'tool', tool: 'browse', url });
+        window._browseBubble = bubble;
+        scrollBottom(); return;
+      }
+    }
+  }
+
+  // Init session
+  if (!currentSessionId) currentSessionId = Date.now().toString();
+
+  // Hide welcome
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+
+  // Build user content parts
+  const contentParts = [];
+  if (autoCtx) {
+    contentParts.push({
+      type: 'text',
+      text: `\`\`\`${autoCtx.lang}\n// ${autoCtx.label}\n${autoCtx.code}\n\`\`\``
+    });
+  }
+  if (pendingContext) {
+    contentParts.push({
+      type: 'text',
+      text: `\`\`\`${pendingContext.lang}\n// 文件: ${pendingContext.label}\n${pendingContext.code}\n\`\`\``
+    });
+  }
+  for (const img of pendingImages) {
+    contentParts.push({ type: 'image_url', image_url: { url: img.dataUrl } });
+  }
+  if (text) contentParts.push({ type: 'text', text });
+
+  resetRepairLoopGuard();
+
+  const userContent = contentParts.length === 1 && contentParts[0].type === 'text'
+    ? contentParts[0].text
+    : contentParts;
+
+  // Show user message
+  const userImages = [...pendingImages];
+  const userCtx = pendingContext;
+  const sentAutoCtx = autoCtx;
+  addUserMessage(text, userImages, userCtx, sentAutoCtx);
+
+  // Clear input
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  pendingImages = [];
+  pendingContext = null;
+  renderPreviewArea();
+
+  // Add to history
+  history.push({ role: 'user', content: userContent });
+
+  // Stream response
+  const aiEl = addAIMessage();
+  await streamResponse(aiEl);
+}
+
+function addUserMessage(text, images, ctx, aCtx) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg user';
+
+  let bubble = '';
+  if (aCtx) {
+    const langShort = (aCtx.lang || 'txt').slice(0, 4).toUpperCase();
+    bubble += `<div class="context-block"><div class="context-header"><span style="font-family:monospace;background:rgba(34,197,94,0.15);border-radius:3px;padding:0 4px;font-size:9px;color:#4ade80">${escapeHtml(langShort)}</span> ${escapeHtml(aCtx.label)}</div><code>${escapeHtml(aCtx.code.slice(0, 500))}${aCtx.code.length > 500 ? '\n...' : ''}</code></div>`;
+  }
+  if (ctx) {
+    bubble += `<div class="context-block"><div class="context-header">📎 ${escapeHtml(ctx.label)}</div><code>${escapeHtml(ctx.code.slice(0, 500))}${ctx.code.length > 500 ? '\n...' : ''}</code></div>`;
+  }
+  for (const img of (images || [])) {
+    bubble += `<img src="${img.dataUrl}">`;
+  }
+  if (text) bubble += escapeHtml(text).replace(/\n/g, '<br>');
+
+  const msgIndex = history.length;
+  div.innerHTML = `
+    <div class="msg-avatar">⭐</div>
+    <div class="msg-content">
+      <div class="msg-bubble">${bubble}</div>
+      <div class="msg-meta"><div class="msg-time">${timeStr()}</div><button class="msg-retry" title="重新发送" onclick="retryMessage(${msgIndex})">↺</button></div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+}
+
+function getModelShortName(modelId) {
+  const map = {
+    'Qwen/Qwen3-235B-A22B': 'Qwen3-235B',
+    'Qwen/Qwen3-32B': 'Qwen3-32B',
+    'deepseek-ai/DeepSeek-R1-0528': 'R1-0528',
+    'deepseek-ai/DeepSeek-V3': 'DeepSeek-V3',
+    'deepseek-ai/DeepSeek-R1': 'DeepSeek-R1',
+    'Qwen/Qwen2.5-VL-72B-Instruct': 'Qwen2.5-VL-72B',
+    'Qwen/Qwen2.5-72B-Instruct': 'Qwen2.5-72B',
+    'Qwen/Qwen2.5-7B-Instruct': 'Qwen2.5-7B',
+  };
+  return map[modelId] || modelId.split('/').pop();
+}
+
+function addAIMessage() {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble streaming';
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  const time = document.createElement('div');
+  time.className = 'msg-time';
+  time.textContent = timeStr();
+  const modelInfo = document.createElement('div');
+  modelInfo.className = 'msg-model';
+  modelInfo.textContent = getModelShortName(modelSelect.value) + ' · 思考中';
+  
+  // 反馈按钮
+  const feedback = document.createElement('div');
+  feedback.className = 'msg-feedback';
+  
+  // 消息ID（用于复制请求ID）
+  const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  div.dataset.msgId = msgId;
+  
+  feedback.innerHTML = `
+    <button class="fb-btn fb-good" title="回答很好" onclick="handleFeedback(this, 'good')">👍</button>
+    <button class="fb-btn fb-bad" title="回答有问题" onclick="handleFeedback(this, 'bad')">👎</button>
+    <button class="fb-btn fb-copy" title="复制回复" onclick="copyAIMessage(this)">📋</button>
+    <button class="msg-menu-btn" title="更多操作" onclick="toggleMsgMenu(this)">⋯</button>
+    <div class="msg-menu">
+      <div class="msg-menu-header">
+        <span class="menu-tokens">积分消耗：计算中...</span>
+      </div>
+      <div class="msg-menu-item" onclick="copyRequestId(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        复制请求ID
+      </div>
+      <div class="msg-menu-item danger" onclick="deleteMessage(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        删除消息
+      </div>
+    </div>
+  `;
+  
+  meta.appendChild(time);
+  meta.appendChild(modelInfo);
+  meta.appendChild(feedback);
+  const content = document.createElement('div');
+  content.className = 'msg-content';
+  content.appendChild(bubble);
+  content.appendChild(meta);
+  div.innerHTML = `<div class="msg-avatar">${CAT_AVATAR_STATIC}</div>`;
+  div.appendChild(content);
+  msgs.appendChild(div);
+  scrollBottom();
+  return bubble;
+}
+
+// 处理用户反馈
+function handleFeedback(btn, type) {
+  const msgDiv = btn.closest('.msg.ai');
+  const bubble = msgDiv.querySelector('.msg-bubble');
+  const aiContent = bubble.textContent || bubble.innerText;
+  const userMsg = history.length > 1 ? history[history.length - 2]?.content : '';
+  
+  if (type === 'good') {
+    recordGoodPattern(aiContent.slice(0, 100), userMsg);
+    showToast('✅ 已记录好评！我会继续保持');
+  } else {
+    recordError('user_feedback', aiContent.slice(0, 100), '用户点踩');
+    showToast('👎 已记录问题，我会改进');
+  }
+  
+  closeAllMenus();
+}
+
+// 复制 AI 消息
+function copyAIMessage(btn) {
+  const msgDiv = btn.closest('.msg.ai');
+  const bubble = msgDiv.querySelector('.msg-bubble');
+  const text = bubble.textContent || bubble.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📋 已复制到剪贴板');
+    closeAllMenus();
+  });
+}
+
+// 切换消息菜单
+function toggleMsgMenu(btn) {
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.classList.contains('show');
+  closeAllMenus();
+  if (!isOpen) {
+    menu.classList.add('show');
+  }
+}
+
+// 关闭所有菜单
+function closeAllMenus() {
+  document.querySelectorAll('.msg-menu.show').forEach(m => m.classList.remove('show'));
+}
+
+// 点击其他地方关闭菜单
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.msg-feedback')) {
+    closeAllMenus();
+  }
+});
+
+// 复制请求ID
+function copyRequestId(btn) {
+  const msgDiv = btn.closest('.msg.ai');
+  const msgId = msgDiv.dataset.msgId || 'unknown';
+  navigator.clipboard.writeText(msgId).then(() => {
+    showToast('📋 已复制请求ID');
+    closeAllMenus();
+  });
+}
+
+// 删除消息
+function deleteMessage(btn) {
+  const msgDiv = btn.closest('.msg.ai');
+  const menu = btn.closest('.msg-menu');
+  const tokensEl = menu.querySelector('.menu-tokens');
+  const tokenInfo = tokensEl ? tokensEl.textContent : '';
+  
+  if (confirm('确定要删除这条消息吗？')) {
+    // 从 history 中删除（找到最后一条AI消息）
+    const lastAIMsgIdx = history.length - 1;
+    if (history[lastAIMsgIdx]?.role === 'assistant') {
+      history.pop();
+      saveSession();
+    }
+    msgDiv.remove();
+    showToast('🗑️ 消息已删除');
+    closeAllMenus();
+  }
+}
+
+// 更新消息的token消耗显示
+function updateMsgTokens(msgDiv, tokens, cost) {
+  const menu = msgDiv.querySelector('.msg-menu');
+  if (menu) {
+    const tokensEl = menu.querySelector('.menu-tokens');
+    if (tokensEl) {
+      tokensEl.textContent = `积分消耗：${cost ? cost.toFixed(2) : tokens}`;
+    }
+  }
+}
+
+async function evaluateLearning(userMsg, aiResponse) {
+  if (!apiKey || !userMsg || !aiResponse) return;
+  if (typeof userMsg !== 'string' || userMsg.startsWith('/')) return;
+  const prompt =
+    `分析以下对话，判断是否出现了需要记录的内容：用户纠正AI错误、发现非显然解决方案、AI知识有误、重要项目约定等。\n` +
+    `用户：${userMsg.slice(0, 300)}\nAI：${aiResponse.slice(0, 500)}\n` +
+    `需要记录则返回JSON：{"log":true,"type":"correction|insight|error|convention","summary":"一句话摘要不超过40字"}\n` +
+    `不需要则只返回：{"log":false}\n只输出JSON，不要其他任何文字。`;
+  try {
+    const res = await fetch(`${baseURL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'Qwen/Qwen2.5-7B-Instruct',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 120,
+        temperature: 0
+      })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const raw = (data.choices?.[0]?.message?.content || '').replace(/```json\n?|\n?```/g, '').trim();
+    const json = JSON.parse(raw);
+    if (json.log && json.summary) {
+      saveLearning({ type: json.type || 'insight', summary: json.summary, time: new Date().toISOString() });
+      showToast('📌 已记录一条经验');
+    }
+  } catch {}
+}
+
+function extractAgentToolCalls(text) {
+  const matches = [...text.matchAll(/```(?:agent-)?tool\s*\n([\s\S]*?)```/g)];
+  const calls = [];
+
+  for (const match of matches) {
+    try {
+      const parsed = JSON.parse(match[1].trim());
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      items.forEach(item => {
+        if (item?.tool) calls.push(item);
+      });
+    } catch {}
+  }
+
+  return calls;
+}
+
+function shouldForceAgentToolContinuation(text, visibleText) {
+  const raw = String(visibleText || stripInternalToolMarkup(text) || '').trim();
+  if (!raw) return false;
+  if (raw.length > 220) return false;
+
+  const progressHints = /(请稍等|稍等|我正在|正在(?:读取|查看|分析|检查|处理|搜索|修改|修复)|我先(?:读取|查看|检查|分析)|先让我|让我先|继续(?:读取|查看|分析))/;
+  const finalHints = /(总结|结论|原因|建议|分析结果|修改完成|修复完成|验证结果|问题在于|因此|所以|已完成|已经完成|如下)/;
+  const lines = raw.split(/\r?\n/).filter(Boolean);
+
+  if (finalHints.test(raw)) return false;
+  return progressHints.test(raw) && lines.length <= 4;
+}
+
+function stripInternalToolMarkup(text) {
+  return text
+    .replace(/```(?:agent-)?tool\s*\n[\s\S]*?```/g, '')
+    .replace(/<tool name="exec">[\s\S]*?<\/tool>/g, '')
+    .trim();
+}
+
+function buildAgentToolResultPrompt(results) {
+  return results.map(entry => {
+    const payload = summarizeAgentToolPayload(entry);
+    return `[工具返回]\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
+  }).join('\n\n') +
+    '\n\n请严格根据以上工具返回的真实内容继续处理任务；如果还需要更多信息，直接继续调用下一步工具，不要只回复“请稍等”“我正在处理”；如果 run_command 或 run_task 返回了 failure.category，优先按其 recommendedAction 决定下一步；如果修改已经完成，也要至少检查一次 diagnostics 或验证命令结果；不要编造未读取过的文件内容。';
+}
+
+async function streamResponse(el, _toolIteration = 0, _statusNudgeCount = 0) {
+  isStreaming = true;
+  sendBtn.innerHTML = '■';
+  sendBtn.classList.add('stop');
+  sendBtn.title = '停止';
+  setStatus('思考中...', 'thinking');
+
+  abortCtrl = new AbortController();
+  let fullText = '';
+  let usage = null;
+  let rafPending = false;
+
+  try {
+    const model = modelSelect.value;
+    const provider = PROVIDERS[currentProvider];
+    const apiURL = provider.baseURL + provider.chatPath;
+    
+    // 按 token 估算截断历史（中文约2字/token，英文约4字/token，取平均3字/token）
+    const MAX_HIST_TOKENS = 60000;
+    let histTokens = 0, histStart = history.length;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const c = history[i].content;
+      const len = typeof c === 'string' ? c.length : JSON.stringify(c).length;
+      histTokens += Math.ceil(len / 3);
+      if (histTokens > MAX_HIST_TOKENS) break;
+      histStart = i;
+    }
+    const trimmedHistory = history.slice(histStart);
+    const modelMessages = trimmedHistory.map(item => ({ role: item.role, content: item.content }));
+    const body = {
+      model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT + buildLearningsPrompt() + buildEvolutionPrompt() + buildOntologyPrompt((() => { const c = trimmedHistory[trimmedHistory.length - 1]?.content; return Array.isArray(c) ? c.map(x => x.text || '').join(' ') : (c || ''); })()) },
+        ...modelMessages
+      ],
+      stream: true,
+      max_tokens: 4096,
+      temperature: 0.7,
+    };
+
+    const res = await fetch(apiURL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(body),
+      signal: abortCtrl.signal
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (raw === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(raw);
+          const delta = evt.choices?.[0]?.delta?.content;
+          if (delta) {
+            fullText += delta;
+            if (!rafPending) {
+              rafPending = true;
+              requestAnimationFrame(() => {
+                el.innerHTML = renderMarkdown(fullText);
+                scrollBottom();
+                rafPending = false;
+              });
+            }
+          }
+          if (evt.usage) usage = evt.usage;
+        } catch {}
+      }
+    }
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      fullText += '\n\n*(已停止)*';
+      el.innerHTML = renderMarkdown(fullText);
+    } else {
+      // 自动错误分析
+      const errorMsg = err.message || '未知错误';
+      let analysis = analyzeError(errorMsg);
+      el.innerHTML = `<div style="color:var(--red);margin-bottom:4px">⚠️ ${escapeHtml(errorMsg)}</div>
+        <div style="padding:6px 8px;background:var(--bg3);border-radius:6px;font-size:12px;line-height:1.5">
+          ${analysis}
+        </div>`;
+      setStatus('出错了', 'error');
+      isStreaming = false;
+      sendBtn.innerHTML = '↑';
+      sendBtn.classList.remove('stop');
+      sendBtn.title = '发送';
+      history.pop();
+      return;
+    }
+  }
+
+  el.classList.remove('streaming');
+  // Update model info: remove "思考中"
+  const modelInfoEl = el.parentElement?.querySelector('.msg-model');
+  if (modelInfoEl) modelInfoEl.textContent = getModelShortName(modelSelect.value);
+
+  const visibleText = stripInternalToolMarkup(fullText);
+
+  const agentToolCalls = extractAgentToolCalls(fullText);
+  if (agentToolCalls.length > 0 && _toolIteration < MAX_TOOL_ITER) {
+    history.push({ role: 'assistant', content: visibleText || '[调用了工作区工具]' });
+    el.innerHTML = renderMarkdown(visibleText) +
+      '<div style="margin-top:8px;color:var(--muted);font-size:12px">🛠️ 正在读取工作区/应用补丁...</div>';
+
+    const results = [];
+    const commandPanel = {
+      id: `cmdpanel_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+      bubble: el,
+      baseText: visibleText,
+      mode: 'all',
+      entries: []
+    };
+    window._agentCommandPanels[commandPanel.id] = commandPanel;
+    for (const call of agentToolCalls) {
+      let toolResult;
+      try {
+        const handlers = {};
+        if (call.tool === 'run_command' || call.tool === 'run_task') {
+          const entry = {
+            label: call.tool === 'run_task' ? formatTaskLabel(call.args || {}) : formatCommandLabel(call.args || {}),
+            stdout: '',
+            stderr: '',
+            status: 'running',
+            exitCode: null,
+            durationText: '运行中',
+            expanded: true,
+            error: ''
+          };
+          commandPanel.entries.push(entry);
+          renderAgentCommandProgress(el, visibleText, commandPanel);
+          handlers.onStream = msg => {
+            const key = msg.stream === 'stderr' ? 'stderr' : 'stdout';
+            entry[key] = (entry[key] + (msg.chunk || '')).slice(-5000);
+            renderAgentCommandProgress(el, visibleText, commandPanel);
+          };
+          handlers.onDone = msg => {
+            const result = msg.result || {};
+            if (call.tool === 'run_task') {
+              const diagnostics = summarizeDiagnosticsForPrompt(result.diagnostics?.diagnostics || [], 4);
+              const diagLines = diagnostics.top.map(item => `${item.filePath}:${item.line}:${item.column} ${item.message}`).join('\n');
+              const taskSummary = [
+                result.note || '任务已完成，详细输出请查看 VS Code 任务终端。',
+                `diagnostics: ${diagnostics.errors} error(s), ${diagnostics.warnings} warning(s)`,
+                diagLines
+              ].filter(Boolean).join('\n');
+              entry.stdout = taskSummary.slice(-5000);
+            } else {
+              entry.stdout = (result.stdout || entry.stdout || '').slice(-5000);
+            }
+            entry.stderr = (result.stderr || entry.stderr || '').slice(-5000);
+            entry.error = result.error || '';
+            entry.status = result.cancelled ? 'stopped' : (result.exitCode === 0 ? 'success' : 'failed');
+            entry.exitCode = result.exitCode;
+            entry.durationText = result.durationMs ? `${result.durationMs}ms` : '已结束';
+            entry.expanded = entry.status !== 'success';
+            renderAgentCommandProgress(el, visibleText, commandPanel);
+          };
+        }
+        toolResult = await execAgentToolAsync(call.tool, call.args || {}, handlers);
+      } catch (err) {
+        toolResult = { success: false, tool: call.tool, error: err?.message || '未知错误' };
+      }
+      results.push(toolResult);
+    }
+
+    const failedTools = results.filter(item => !item.success);
+    const blockingFailures = failedTools.filter(item => !isRecoverableAgentToolFailure(item));
+    const recoverableFailures = failedTools.filter(item => isRecoverableAgentToolFailure(item));
+    if (blockingFailures.length > 0) {
+      const stopMsg = blockingFailures.map(item =>
+        `❌ **工具执行失败**\n\n\`\`\`json\n${JSON.stringify({ tool: item.tool, error: item.error || '未知错误' }, null, 2)}\n\`\`\``
+      ).join('\n\n') + '\n\n> 工作区工具失败，已停止，避免继续误改代码。';
+      el.innerHTML = renderMarkdown(stopMsg);
+      history.push({ role: 'assistant', content: stopMsg });
+      saveSession(); scrollBottom();
+      isStreaming = false; abortCtrl = null;
+      sendBtn.innerHTML = '↑'; sendBtn.classList.remove('stop'); sendBtn.title = '发送 (Enter)';
+      setStatus('就绪');
+      return;
+    }
+
+    if (recoverableFailures.length > 0) {
+      const warning = recoverableFailures.map(item =>
+        `⚠️ 已跳过可恢复的读取失败：${item.tool} - ${item.error || '未知错误'}`
+      ).join('\n');
+      el.innerHTML = renderMarkdown((visibleText || '[调用了工作区工具]') + '\n\n' + warning);
+    }
+
+    const repairDecision = evaluateRepairLoopGuard(results);
+    if (repairDecision.shouldStop) {
+      el.innerHTML = renderMarkdown(repairDecision.message);
+      history.push({ role: 'assistant', content: repairDecision.message });
+      saveSession(); scrollBottom();
+      isStreaming = false; abortCtrl = null;
+      sendBtn.innerHTML = '↑'; sendBtn.classList.remove('stop'); sendBtn.title = '发送 (Enter)';
+      setStatus('就绪');
+      return;
+    }
+
+    history.push({ role: 'user', content: buildAgentToolResultPrompt(results), internal: true });
+    const nextEl = addAIMessage();
+    await streamResponse(nextEl, _toolIteration + 1, 0);
+    isStreaming = false;
+    abortCtrl = null;
+    sendBtn.innerHTML = '↑';
+    sendBtn.classList.remove('stop');
+    sendBtn.title = '发送 (Enter)';
+    setStatus('就绪');
+    return;
+  }
+
+  // ── Tool-use loop ──
+  const toolCalls = [...fullText.matchAll(/<tool name="exec">([\s\S]*?)<\/tool>/g)];
+  if (toolCalls.length > 0 && _toolIteration < MAX_TOOL_ITER) {
+    history.push({ role: 'assistant', content: visibleText || '[调用了外部工具]' });
+    el.innerHTML = renderMarkdown(visibleText) +
+      '<div style="margin-top:8px;color:var(--muted);font-size:12px">⚙️ 正在执行工具...</div>';
+
+    const results = [];
+    const failedTools = [];
+    for (const match of toolCalls) {
+      const cmd = match[1].trim();
+      let result;
+      try { result = await execSkillAsync(cmd); } catch (e) { result = { error: e.message }; }
+      const stdout = (result?.stdout || '').trim();
+      const stderr = (result?.stderr || '').trim();
+      const error = (result?.error || '').trim();
+      const failed = !stdout && (stderr || error);
+      if (failed) failedTools.push({ cmd, reason: (stderr || error).slice(0, 300) });
+      const out = stdout || stderr || error || '（无输出）';
+      results.push(`<result cmd="${cmd.replace(/&/g,'&amp;').replace(/</g,'&lt;')}" status="${failed ? 'error' : 'ok'}">\n${out.slice(0, 2000)}\n</result>`);
+    }
+
+    // 工具执行失败时直接停止，不让模型继续编造
+    if (failedTools.length > 0) {
+      el.classList.remove('streaming');
+      const errLines = failedTools.map(f =>
+        `❌ **工具执行失败**\n\`\`\`\n${f.cmd.slice(0, 120)}\n\`\`\`\n错误：${f.reason}`
+      ).join('\n\n');
+      const stopMsg = errLines + '\n\n> 工具执行失败，已停止。请检查环境配置，或换一种方式获取信息。';
+      el.innerHTML = renderMarkdown(stopMsg);
+      history.push({ role: 'assistant', content: stopMsg });
+      saveSession(); scrollBottom();
+      isStreaming = false; abortCtrl = null;
+      sendBtn.innerHTML = '↑'; sendBtn.classList.remove('stop'); sendBtn.title = '发送 (Enter)';
+      setStatus('就绪');
+      return;
+    }
+
+    history.push({ role: 'user', content: results.join('\n') + '\n\n请严格根据以上工具返回的真实内容回答，不得补充、推测或编造任何工具未返回的信息。如果内容不足以回答，直接说"信息不足"。' });
+    const nextEl = addAIMessage();
+    await streamResponse(nextEl, _toolIteration + 1, 0);
+    // 收尾由递归的最后一轮负责，这里只做清理
+    isStreaming = false;
+    abortCtrl = null;
+    sendBtn.innerHTML = '↑';
+    sendBtn.classList.remove('stop');
+    sendBtn.title = '发送 (Enter)';
+    setStatus('就绪');
+    return;
+  }
+
+  if (_toolIteration > 0 && _statusNudgeCount < 2 && shouldForceAgentToolContinuation(fullText, visibleText)) {
+    const continuationPrompt = '[继续执行要求]\n不要只回复进度说明。若还需要读取、搜索、修改或验证，请立刻直接调用下一步工具；若信息已足够，请直接给出最终结论。';
+    history.push({ role: 'assistant', content: visibleText || '[继续处理中]' });
+    history.push({ role: 'user', content: continuationPrompt, internal: true });
+    const nextEl = addAIMessage();
+    nextEl.innerHTML = renderMarkdown('继续处理中...');
+    await streamResponse(nextEl, _toolIteration + 1, _statusNudgeCount + 1);
+    isStreaming = false;
+    abortCtrl = null;
+    sendBtn.innerHTML = '↑';
+    sendBtn.classList.remove('stop');
+    sendBtn.title = '发送 (Enter)';
+    setStatus('就绪');
+    return;
+  }
+
+  history.push({ role: 'assistant', content: visibleText || fullText });
+  saveSession();
+
+  // 异步评估是否有值得记录的经验（不阻塞主流程）
+  const lastUserMsg = history.length >= 2 ? history[history.length - 2]?.content : '';
+  if (typeof lastUserMsg === 'string') {
+    evaluateLearning(lastUserMsg, fullText);
+    // 自我进化：分析对话
+    analyzeConversation(lastUserMsg, fullText);
+  }
+
+  if (usage) {
+    totalTokens += (usage.total_tokens || 0);
+    document.getElementById('token-count').textContent = `${totalTokens} tokens`;
+    // 更新当前消息菜单中的token消耗
+    const msgDiv = el?.closest('.msg.ai');
+    if (msgDiv) {
+      // 计算积分消耗（假设每1K tokens约0.01元）
+      const cost = ((usage.total_tokens || 0) / 1000) * 0.01;
+      updateMsgTokens(msgDiv, usage.total_tokens, cost);
+    }
+  }
+
+  isStreaming = false;
+  abortCtrl = null;
+  sendBtn.innerHTML = '↑';
+  sendBtn.classList.remove('stop');
+  sendBtn.title = '发送 (Enter)';
+  setStatus('就绪');
+  scrollBottom();
+}
+
+function addAIMessageStatic(text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  
+  // 消息ID
+  const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  div.dataset.msgId = msgId;
+  
+  const avatarDiv = document.createElement('div');
+  avatarDiv.className = 'msg-avatar';
+  avatarDiv.innerHTML = CAT_AVATAR_STATIC;
+  div.appendChild(avatarDiv);
+  
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'msg-content';
+  contentDiv.innerHTML = `
+    <div class="msg-bubble">${renderMarkdown(text)}</div>
+    <div class="msg-meta">
+      <div class="msg-time">${timeStr()}</div>
+      <div class="msg-feedback">
+        <button class="fb-btn fb-good" title="回答很好" onclick="handleFeedback(this, 'good')">👍</button>
+        <button class="fb-btn fb-bad" title="回答有问题" onclick="handleFeedback(this, 'bad')">👎</button>
+        <button class="fb-btn fb-copy" title="复制回复" onclick="copyAIMessage(this)">📋</button>
+        <button class="msg-menu-btn" title="更多操作" onclick="toggleMsgMenu(this)">⋯</button>
+        <div class="msg-menu">
+          <div class="msg-menu-header">
+            <span class="menu-tokens">积分消耗：--</span>
+          </div>
+          <div class="msg-menu-item" onclick="copyRequestId(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            复制请求ID
+          </div>
+          <div class="msg-menu-item danger" onclick="deleteMessage(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            删除消息
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  div.appendChild(contentDiv);
+  msgs.appendChild(div);
+}
+
+function stopStreaming() {
+  abortCtrl?.abort();
+  for (const id of window._activeAgentToolIds) {
+    vscode.postMessage({ type: 'cancelAgentTool', id });
+  }
+}
+
+// ── 错误分析与解决方案 ──
+function analyzeError(errorMsg) {
+  const lower = errorMsg.toLowerCase();
+  
+  // HTTP 400 错误
+  if (lower.includes('400') || lower.includes('bad request')) {
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>HTTP 400 - 请求参数错误</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>API Key格式错误、请求参数格式错误、模型名称错误</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>检查API Key配置→确认模型名称→切换模型→检查控制台</div>`;
+  }
+  
+  // HTTP 401/403 错误
+  if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized') || lower.includes('forbidden')) {
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>认证失败</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>API Key无效、账户余额不足、权限不足</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>重新配置API Key→检查余额→确认模型权限</div>`;
+  }
+  
+  // HTTP 429 错误
+  if (lower.includes('429') || lower.includes('rate limit') || lower.includes('too many')) {
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>请求频率限制</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>请求太频繁、超出频率限制</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>等待1-2分钟重试→降低频率→升级套餐</div>`;
+  }
+  
+  // HTTP 500/502/503 错误
+  if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('server error') || lower.includes('unavailable')) {
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>服务器错误</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>服务不可用、正在维护、服务器过载</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>等待几分钟后重试→切换模型→检查状态页面</div>`;
+  }
+  
+  // 网络错误
+  if (lower.includes('network') || lower.includes('connection') || lower.includes('timeout') || lower.includes('econnrefused') || lower.includes('fetch failed')) {
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>网络连接错误</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>网络不稳定、代理设置问题、防火墙</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>检查网络→检查代理→关闭VPN/切换节点→检查防火墙</div>`;
+  }
+  
+  // 上下文长度超限
+  if (lower.includes('context') || lower.includes('token') || lower.includes('length') || lower.includes('too long')) {
+    return `<div style="margin-bottom:4px"><strong>错误类型：</strong>上下文长度超限</div>
+    <div style="margin-bottom:2px"><strong>可能原因：</strong>对话历史太长、内容过多</div>
+    <div style="margin-bottom:2px"><strong>解决方案：</strong>开始新对话→简化输入→选择支持长上下文的模型</div>`;
+  }
+  
+  // 默认错误
+  return `<div style="margin-bottom:4px"><strong>错误类型：</strong>未知错误</div>
+  <div style="margin-bottom:2px"><strong>建议操作：</strong>重试→新对话→检查API Key→切换模型→联系技术支持</div>
+  <div style="color:var(--muted);font-size:11px">${escapeHtml(errorMsg)}</div>`;
+}
+
+
+function retryMessage(msgIndex) {
+  if (isStreaming) return;
+  // 找到这条用户消息在 history 中的位置（msgIndex 是发送时的 history.length）
+  // 截断 history 到该消息（含），重新发送
+  const targetIdx = Math.min(msgIndex, history.length - 1);
+  if (targetIdx < 0 || history[targetIdx]?.role !== 'user') return;
+  history = history.slice(0, targetIdx + 1);
+  // 删除页面上这条消息之后的所有 AI 消息
+  const msgs = document.getElementById('messages');
+  const allMsgs = [...msgs.querySelectorAll('.msg')];
+  // 找到第 (targetIdx) 个用户消息气泡（0-indexed）
+  let userCount = 0;
+  let cutFrom = -1;
+  allMsgs.forEach((el, i) => {
+    if (el.classList.contains('user')) {
+      if (userCount === targetIdx) cutFrom = i + 1;
+      userCount++;
+    }
+  });
+  if (cutFrom >= 0) {
+    allMsgs.slice(cutFrom).forEach(el => el.remove());
+  }
+  const aiEl = addAIMessage();
+  streamResponse(aiEl);
+}
+
+// ── Markdown renderer ──
+function renderMarkdown(text) {
+  // Code blocks
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    if (lang === 'agent-tool') {
+      return '';
+    }
+    if (lang === 'diff') {
+      const lines = code.trimEnd().split('\n').map(line => {
+        if (line.startsWith('+')) return `<span class="diff-add">${escapeHtml(line)}</span>`;
+        if (line.startsWith('-')) return `<span class="diff-del">${escapeHtml(line)}</span>`;
+        if (line.startsWith('@@')) return `<span class="diff-meta">${escapeHtml(line)}</span>`;
+        return escapeHtml(line);
+      }).join('\n');
+      return `<pre><div class="code-header"><span>diff</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div><code class="language-diff">${lines}</code></pre>`;
+    }
+    const escaped = escapeHtml(code.trimEnd());
+    return `<pre><div class="code-header"><span>${lang || 'code'}</span><div style="display:flex;gap:4px"><button class="copy-btn apply-btn" onclick="applyCode(this)" title="写入当前编辑器">应用</button><button class="copy-btn accept-btn" onclick="acceptCode(this)" title="验证语法">验收</button><button class="copy-btn" onclick="copyCode(this)">复制</button></div></div><code class="language-${lang}">${escaped}</code></pre>`;
+  });
+  // Inline code
+  text = text.replace(/`([^`]+)`/g, (_, c) => `<code>${escapeHtml(c)}</code>`);
+  // Headers
+  text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // Bold / italic
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Blockquote
+  text = text.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  // HR
+  text = text.replace(/^---+$/gm, '<hr>');
+  // Lists
+  text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
+  text = text.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+  text = text.replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+  // Links (only allow http/https to prevent javascript: injection)
+  text = text.replace(/\[(.+?)\]\((.+?)\)/g, (_, label, url) => {
+    const safe = /^https?:\/\//i.test(url) ? url : '#';
+    return `<a href="${escapeHtml(safe)}" target="_blank">${label}</a>`;
+  });
+  // Line breaks (not inside tags)
+  text = text.replace(/\n\n/g, '</p><p>');
+  text = text.replace(/\n/g, '<br>');
+  text = `<p>${text}</p>`;
+  // Clean up empty paragraphs
+  text = text.replace(/<p><\/p>/g, '');
+  text = text.replace(/<p>(<(?:pre|ul|ol|h[1-6]|blockquote|hr))/g, '$1');
+  text = text.replace(/(<\/(?:pre|ul|ol|h[1-6]|blockquote|hr)>)<\/p>/g, '$1');
+  return text;
+}
+
+function copyCode(btn) {
+  const code = btn.closest('pre').querySelector('code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = '✓ 已复制';
+    setTimeout(() => btn.textContent = '复制', 1500);
+  });
+}
+function applyCode(btn, filePath = null) {
+  const code = btn.closest('pre').querySelector('code').textContent;
+  const msg = { type: 'applyCode', code };
+  if (filePath) {
+    msg.filePath = filePath;
+  }
+  vscode.postMessage(msg);
+  btn.textContent = '✓';
+  setTimeout(() => btn.textContent = '应用', 2000);
+}
+function acceptCode(btn) {
+  const codeBlock = btn.closest('pre');
+  const code = codeBlock.querySelector('code').textContent;
+  const langSpan = codeBlock.querySelector('.code-header span');
+  const lang = langSpan?.textContent || 'javascript';
+
+  btn.disabled = true;
+  btn.textContent = '检查中...';
+
+  vscode.postMessage({
+    type: 'acceptCode',
+    code,
+    lang,
+    filePath: null
+  });
+}
+
+// ── Utils ──
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+function timeStr() {
+  return new Date().toLocaleTimeString('zh', { hour: '2-digit', minute: '2-digit' });
+}
+function scrollBottom() {
+  const msgs = document.getElementById('messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function setStatus(text, state = 'ok') {
+  document.getElementById('status-text').textContent = text;
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (state === 'thinking' ? ' thinking' : state === 'error' ? ' error' : '');
+}
+function addSystemHint(text) {
+  const msgs = document.getElementById('messages');
+  const el = document.createElement('div');
+  el.style.cssText = 'text-align:center;padding:6px 12px;margin:4px 10px;color:var(--text-muted);font-size:11px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);';
+  el.textContent = '⚠ ' + text;
+  msgs.appendChild(el);
+  scrollBottom();
+  setTimeout(() => el.remove(), 4000);
+}
+
+function addValidationMessage(mdText, isSuccess) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;margin:6px 10px;align-items:flex-start;';
+  const accent = isSuccess ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)';
+  const borderColor = isSuccess ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)';
+  div.innerHTML = `
+    <div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;margin-top:2px">${isSuccess ? '🔍' : '⚠️'}</div>
+    <div style="background:${accent};border:1px solid ${borderColor};border-radius:10px;padding:7px 12px;font-size:12.5px;flex:1;max-width:90%;color:var(--text)">${renderMarkdown(mdText)}</div>
+  `;
+  msgs.appendChild(div);
+  scrollBottom();
+}
+
+// ── Auto-restore last session on page load ──
+(function restoreLastSession() {
+  const lastId = localStorage.getItem('vsc_last_session_id');
+  if (lastId && sessions.find(s => s.id === lastId)) {
+    loadSession(lastId);
+  } else {
+    renderDrawerList();
+  }
+})();
+
+// ── 初始化 Header 头像 ──
+document.getElementById('header-avatar').innerHTML = CAT_AVATAR_SVG;
+
+// ── 初始化 Welcome 图标 ──
+initWelcomeIcon();
+</script>
+</body>
+</html>

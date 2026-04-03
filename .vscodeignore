@@ -1,0 +1,12 @@
+.gitignore
+AI_COMPARISON.md
+CLAUDE.md
+DIAGNOSTIC_TOOLS_RELEASE.md
+FILE_TOOLS_GUIDE.md
+FILE_TOOLS_RELEASE_NOTES.md
+SELFTEST.md
+THINKING_STATUS_RELEASE.md
+check_syntax.js
+install.bat
+tests/**
+memories/**

@@ -1,0 +1,23 @@
+# VS Code extension build output
+*.vsix
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Temp files
+*.tmp
+*.temp
+*.log
+temp.zip
+
+# Build artifacts
+out/
+dist/
