@@ -1,0 +1,15 @@
+#!/bin/bash
+# Self-Improvement Activator Hook
+
+cat << 'EOF'
+<self-improvement-reminder>
+After completing this task, evaluate if extractable knowledge emerged:
+- Non-obvious solution discovered through investigation?
+- Workaround for unexpected behavior?
+- Project-specific pattern learned?
+- Error required debugging to resolve?
+
+If yes: Log to .learnings/ using the self-improvement skill format.
+If high-value (recurring, broadly applicable): Consider promoting to CLAUDE.md.
+</self-improvement-reminder>
+EOF
