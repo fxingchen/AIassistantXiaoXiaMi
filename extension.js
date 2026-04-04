@@ -5,6 +5,7 @@ const os = require('os');
 const https = require('https');
 const http = require('http');
 const { exec, spawn } = require('child_process');
+const { getProvider, buildRequestConfig } = require('./src/providers');
 
 const EVENT_TYPES = {
   GET_EDITOR: 'getEditor',
@@ -15,6 +16,7 @@ const EVENT_TYPES = {
   EDITOR_CONTEXT: 'editorContext'
 };
 
+const PRIMARY_API_KEY_SECRET = 'sf_api_key';
 const FORBIDDEN_PATH_SEGMENTS = new Set(['.git', '.vscode', 'node_modules', '.claude']);
 const LOCAL_READ_SKIP_DIRS = new Set(['.git', '.vscode']);
 const ALLOWED_PACKAGE_RUNNERS = new Set(['npm', 'npm.cmd', 'pnpm', 'pnpm.cmd', 'yarn', 'yarn.cmd']);
@@ -87,6 +89,7 @@ class ChatViewProvider {
   constructor(extensionUri, context) {
     this._extensionUri = extensionUri;
     this._context = context;
+    this._secretStorage = context.secrets || null;
     this._view = null;
     this._lastEditor = null;
     this._lastLocalRootPath = '';
@@ -94,6 +97,7 @@ class ChatViewProvider {
     this._cachedHtml = null;
     this._runningAgentCommands = new Map();
     this._runningAgentTasks = new Map();
+    this._runningChatRequests = new Map();
 
     // 记录最后一个活跃的文本编辑器（点击 webview 时不会丢失）
     context.subscriptions.push(
@@ -199,12 +203,28 @@ class ChatViewProvider {
           break;
         }
         case 'saveApiKey': {
-          this._context.globalState.update('sf_api_key', msg.key);
+          await this._saveStoredApiKey(msg.key);
           break;
         }
         case 'requestApiKey': {
-          const key = this._context.globalState.get('sf_api_key', '');
-          this._view?.webview.postMessage({ type: 'loadApiKey', key });
+          const key = await this._getStoredApiKey();
+          this._view?.webview.postMessage({
+            type: 'loadApiKey',
+            hasKey: !!key,
+            maskedKey: this._maskSecretValue(key)
+          });
+          break;
+        }
+        case 'chatStreamRequest': {
+          await this._handleChatStreamRequest(msg);
+          break;
+        }
+        case 'cancelChatStream': {
+          await this._cancelChatRequest(msg.id);
+          break;
+        }
+        case 'chatCompletionRequest': {
+          await this._handleChatCompletionRequest(msg);
           break;
         }
         case 'applyCode': {
@@ -251,8 +271,20 @@ class ChatViewProvider {
     const args = msg.args || {};
 
     try {
+      const confirmation = this._buildHighRiskToolConfirmation(msg.tool, args);
+      if (confirmation) {
+        const approved = await this._confirmHighRiskToolExecution(confirmation);
+        if (!approved) {
+          post({ success: false, error: '用户取消了高风险操作', cancelled: true });
+          return;
+        }
+      }
+
       let result;
       switch (msg.tool) {
+        case 'web_search':
+          result = await this._webSearch(args.query || '');
+          break;
         case 'list_files':
           result = await this._listWorkspaceFiles(args.pattern || '**/*', args.maxResults || 200);
           break;
@@ -326,6 +358,379 @@ class ChatViewProvider {
         child?.kill('SIGTERM');
       }
     } catch {}
+  }
+
+  async _handleChatStreamRequest(msg) {
+    const requestId = String(msg?.id || '').trim();
+    if (!requestId) {
+      throw new Error('chatStreamRequest 缺少 id');
+    }
+
+    try {
+      const apiKey = await this._getStoredApiKey();
+      if (!apiKey) {
+        throw new Error('请先配置 API Key');
+      }
+
+      const request = this._buildHostedChatRequest(msg, apiKey, true);
+      const result = await this._streamHostedChatRequest(requestId, request);
+      this._view?.webview.postMessage({
+        type: 'chatStreamEnd',
+        id: requestId,
+        usage: result.usage || null,
+        finishReason: result.finishReason || ''
+      });
+    } catch (err) {
+      this._view?.webview.postMessage({
+        type: 'chatStreamError',
+        id: requestId,
+        error: err?.message || '未知错误',
+        errorName: err?.name || 'Error',
+        cancelled: err?.name === 'AbortError'
+      });
+    }
+  }
+
+  async _handleChatCompletionRequest(msg) {
+    const requestId = String(msg?.id || '').trim();
+    if (!requestId) {
+      throw new Error('chatCompletionRequest 缺少 id');
+    }
+
+    try {
+      const apiKey = await this._getStoredApiKey();
+      if (!apiKey) {
+        throw new Error('请先配置 API Key');
+      }
+
+      const request = this._buildHostedChatRequest(msg, apiKey, false);
+      const response = await this._performHostedChatCompletion(requestId, request);
+      this._view?.webview.postMessage({
+        type: 'chatCompletionResult',
+        id: requestId,
+        success: true,
+        content: this._extractChatCompletionContent(response.data),
+        usage: response.data?.usage || null,
+        raw: response.data
+      });
+    } catch (err) {
+      this._view?.webview.postMessage({
+        type: 'chatCompletionResult',
+        id: requestId,
+        success: false,
+        error: err?.message || '未知错误',
+        errorName: err?.name || 'Error',
+        cancelled: err?.name === 'AbortError'
+      });
+    }
+  }
+
+  async _cancelChatRequest(id) {
+    const requestId = String(id || '').trim();
+    if (!requestId) return;
+
+    const entry = this._runningChatRequests.get(requestId);
+    if (!entry) return;
+
+    entry.cancelled = true;
+    entry.state.cancelled = true;
+    try {
+      entry.request.destroy(new Error('REQUEST_ABORTED'));
+    } catch {}
+  }
+
+  _buildHostedChatRequest(msg, apiKey, stream) {
+    const providerId = String(msg?.providerId || 'siliconflow').trim() || 'siliconflow';
+    const model = String(msg?.model || '').trim();
+    if (!model) {
+      throw new Error('缺少 model');
+    }
+
+    if (!Array.isArray(msg?.messages) || msg.messages.length === 0) {
+      throw new Error('缺少 messages');
+    }
+
+    const provider = getProvider(providerId);
+    const baseURL = this._resolveHostedChatBaseURL(provider, msg?.baseURL);
+    const { config } = buildRequestConfig(providerId, model, apiKey, msg.messages, {
+      stream,
+      temperature: msg?.temperature,
+      max_tokens: msg?.maxTokens,
+      extra: msg?.extra || {}
+    });
+
+    return {
+      url: `${baseURL}${provider.chatPath}`,
+      method: config.method,
+      headers: config.headers,
+      body: config.body
+    };
+  }
+
+  _resolveHostedChatBaseURL(provider, baseURL) {
+    const override = String(baseURL || '').trim().replace(/\/$/, '');
+    if (override) {
+      return override;
+    }
+
+    const fallback = String(provider?.baseURL || '').trim().replace(/\/$/, '');
+    if (!fallback) {
+      throw new Error('当前 provider 缺少 baseURL，请先在设置中填写 API 地址');
+    }
+
+    return fallback;
+  }
+
+  async _streamHostedChatRequest(requestId, request) {
+    const response = await this._performHostedHttpRequest(requestId, request, true, chunk => {
+      this._view?.webview.postMessage({ type: 'chatStreamChunk', id: requestId, delta: chunk });
+    });
+    return response;
+  }
+
+  async _performHostedChatCompletion(requestId, request) {
+    return this._performHostedHttpRequest(requestId, request, false);
+  }
+
+  _performHostedHttpRequest(requestId, request, expectStream, onChunk = () => {}) {
+    const target = new URL(request.url);
+    const transport = target.protocol === 'https:' ? https : http;
+
+    return new Promise((resolve, reject) => {
+      const options = {
+        protocol: target.protocol,
+        hostname: target.hostname,
+        port: target.port || undefined,
+        path: `${target.pathname}${target.search}`,
+        method: request.method || 'POST',
+        headers: request.headers || {}
+      };
+
+      const state = { cancelled: false };
+      const req = transport.request(options, res => {
+        const ok = typeof res.statusCode === 'number' && res.statusCode >= 200 && res.statusCode < 300;
+        let rawBody = '';
+        let eventBuffer = '';
+        let usage = null;
+        let finishReason = '';
+
+        res.setEncoding('utf8');
+
+        const failFromBody = () => {
+          const message = this._extractHttpErrorMessage(rawBody, res.statusCode);
+          const error = new Error(message);
+          error.statusCode = res.statusCode;
+          reject(error);
+        };
+
+        res.on('data', chunk => {
+          if (state.cancelled) return;
+
+          if (!ok) {
+            rawBody += chunk;
+            return;
+          }
+
+          if (!expectStream) {
+            rawBody += chunk;
+            return;
+          }
+
+          eventBuffer += chunk;
+          const lines = eventBuffer.split(/\r?\n/);
+          eventBuffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue;
+            const raw = line.slice(5).trim();
+            if (!raw || raw === '[DONE]') continue;
+
+            try {
+              const event = JSON.parse(raw);
+              const delta = event?.choices?.[0]?.delta?.content;
+              if (typeof delta === 'string' && delta) {
+                onChunk(delta);
+              }
+              if (event?.usage) {
+                usage = event.usage;
+              }
+              if (event?.choices?.[0]?.finish_reason) {
+                finishReason = event.choices[0].finish_reason;
+              }
+            } catch {}
+          }
+        });
+
+        res.on('end', () => {
+          this._runningChatRequests.delete(requestId);
+
+          if (state.cancelled) {
+            const error = new Error('请求已停止');
+            error.name = 'AbortError';
+            reject(error);
+            return;
+          }
+
+          if (!ok) {
+            failFromBody();
+            return;
+          }
+
+          if (expectStream) {
+            resolve({ usage, finishReason });
+            return;
+          }
+
+          try {
+            resolve({ data: rawBody ? JSON.parse(rawBody) : {} });
+          } catch (err) {
+            reject(new Error(`响应解析失败: ${err?.message || '未知错误'}`));
+          }
+        });
+      });
+
+      this._runningChatRequests.set(requestId, { request: req, cancelled: false, state });
+
+      req.on('error', err => {
+        this._runningChatRequests.delete(requestId);
+        if (state.cancelled || err?.message === 'REQUEST_ABORTED') {
+          const abortError = new Error('请求已停止');
+          abortError.name = 'AbortError';
+          reject(abortError);
+          return;
+        }
+        reject(err);
+      });
+
+      req.write(request.body || '');
+      req.end();
+    });
+  }
+
+  _extractHttpErrorMessage(rawBody, statusCode) {
+    try {
+      const parsed = JSON.parse(rawBody || '{}');
+      return parsed?.error?.message || parsed?.message || `HTTP ${statusCode || 500}`;
+    } catch {
+      return (rawBody || '').trim().slice(0, 300) || `HTTP ${statusCode || 500}`;
+    }
+  }
+
+  _extractChatCompletionContent(data) {
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return content.map(part => part?.text || '').join('');
+    }
+    return '';
+  }
+
+  async _saveStoredApiKey(rawKey) {
+    const key = String(rawKey || '').trim();
+    if (!key) {
+      throw new Error('API Key 不能为空');
+    }
+
+    if (this._secretStorage?.store) {
+      await this._secretStorage.store(PRIMARY_API_KEY_SECRET, key);
+      await this._context.globalState.update('sf_api_key', '');
+      return;
+    }
+
+    await this._context.globalState.update('sf_api_key', key);
+  }
+
+  async _getStoredApiKey() {
+    if (this._secretStorage?.get) {
+      const storedKey = String(await this._secretStorage.get(PRIMARY_API_KEY_SECRET) || '').trim();
+      if (storedKey) {
+        return storedKey;
+      }
+    }
+
+    const legacyKey = String(this._context.globalState.get('sf_api_key', '') || '').trim();
+    if (!legacyKey) {
+      return '';
+    }
+
+    if (this._secretStorage?.store) {
+      await this._secretStorage.store(PRIMARY_API_KEY_SECRET, legacyKey);
+      await this._context.globalState.update('sf_api_key', '');
+    }
+
+    return legacyKey;
+  }
+
+  _maskSecretValue(value) {
+    const secret = String(value || '').trim();
+    if (!secret) return '';
+    if (secret.length <= 8) return `${secret.slice(0, 2)}****`;
+    return `${secret.slice(0, 4)}...${secret.slice(-4)}`;
+  }
+
+  _buildHighRiskToolConfirmation(tool, args = {}) {
+    if (tool === 'run_command') {
+      return {
+        title: '确认执行命令',
+        detail: `命令: ${String(args.command || '').trim() || 'unknown'} ${(Array.isArray(args.args) ? args.args.join(' ') : '').trim()}`.trim(),
+        confirmLabel: '继续执行'
+      };
+    }
+
+    if (tool === 'run_task') {
+      return {
+        title: '确认执行任务',
+        detail: `任务: ${String(args.label || args.name || 'unknown').trim()}${args.source ? ` [${args.source}]` : ''}`,
+        confirmLabel: '继续执行'
+      };
+    }
+
+    if (tool === 'apply_local_patch' && !args.previewMode) {
+      const changes = Array.isArray(args.changes) ? args.changes : [];
+      if (!changes.length) return null;
+      const actions = [...new Set(changes.map(change => String(change?.action || 'unknown')))].join(', ');
+      return {
+        title: '确认修改工作区外目录',
+        detail: `目录: ${String(args.rootPath || this._lastLocalRootPath || '(使用最近一次目录)').trim()}\n动作: ${actions}\n数量: ${changes.length}`,
+        confirmLabel: '继续修改'
+      };
+    }
+
+    if (tool === 'apply_patch' && !args.previewMode) {
+      const changes = Array.isArray(args.changes) ? args.changes : [];
+      const dangerousActions = changes.filter(change => this._isHighRiskPatchAction(change));
+      if (!dangerousActions.length) return null;
+      const actions = [...new Set(dangerousActions.map(change => String(change?.action || 'unknown')))].join(', ');
+      return {
+        title: '确认高风险工作区修改',
+        detail: `动作: ${actions}\n数量: ${dangerousActions.length}`,
+        confirmLabel: '继续修改'
+      };
+    }
+
+    return null;
+  }
+
+  _isHighRiskPatchAction(change) {
+    const action = String(change?.action || '');
+    if (action === 'delete' || action === 'rename' || action === 'write') {
+      return true;
+    }
+    return action === 'create' && !!change?.overwrite;
+  }
+
+  async _confirmHighRiskToolExecution(request) {
+    const confirmLabel = request?.confirmLabel || '继续';
+    const detail = String(request?.detail || '').trim();
+    const selection = await vscode.window.showWarningMessage(
+      request?.title || '确认高风险操作',
+      { modal: true, detail },
+      confirmLabel,
+      '取消'
+    );
+    return selection === confirmLabel;
   }
 
   _getWorkspaceRoot() {

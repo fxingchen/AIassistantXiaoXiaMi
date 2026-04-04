@@ -46,13 +46,35 @@ function assertWebviewContinuationGuard() {
   const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(match => match[1]).join('\n');
   const stripMatch = script.match(/function stripInternalToolMarkup\(text\) \{[\s\S]*?\n\}/);
   const continuationMatch = script.match(/function shouldForceAgentToolContinuation\(text, visibleText\) \{[\s\S]*?\n\}/);
+  const invocationMatch = script.match(/function shouldForceToolInvocationFromPlainText\(text, visibleText\) \{[\s\S]*?\n\}/);
+  const extractMatch = script.match(/function extractAgentToolCalls\(text\) \{[\s\S]*?\n\}/);
 
   assert(stripMatch, '应能找到 stripInternalToolMarkup 函数');
   assert(continuationMatch, '应能找到 shouldForceAgentToolContinuation 函数');
+  assert(invocationMatch, '应能找到 shouldForceToolInvocationFromPlainText 函数');
+  assert(extractMatch, '应能找到 extractAgentToolCalls 函数');
 
-  const helpers = new Function(`${stripMatch[0]}\n${continuationMatch[0]}\nreturn { shouldForceAgentToolContinuation };`)();
+  const helpers = new Function(`${extractMatch[0]}\n${stripMatch[0]}\n${continuationMatch[0]}\n${invocationMatch[0]}\nreturn { shouldForceAgentToolContinuation, shouldForceToolInvocationFromPlainText };`)();
   assert.strictEqual(helpers.shouldForceAgentToolContinuation('', '请稍等，我正在读取本地文件结构和关键配置文件。'), true, '纯进度说明应触发自动续跑');
   assert.strictEqual(helpers.shouldForceAgentToolContinuation('', '分析结果如下：入口在 main.js，建议先修复配置。'), false, '已有明确分析结论时不应继续追问');
+  assert.strictEqual(helpers.shouldForceToolInvocationFromPlainText('', '我会先通过 web_search 工具搜索今天最新的 AI 资讯。'), true, '只承诺搜索但未调用工具时应触发强制工具调用');
+  assert.strictEqual(helpers.shouldForceToolInvocationFromPlainText('```agent-tool\n{"tool":"web_search","args":{"query":"今天最新AI资讯"}}\n```', '我会先通过 web_search 工具搜索今天最新的 AI 资讯。'), false, '已经输出工具代码块时不应重复强制');
+}
+
+function assertWebviewApiKeyPersistenceRemoved() {
+  const html = fs.readFileSync(path.join(workspaceRoot, 'media', 'webview.html'), 'utf8');
+  assert(!html.includes("localStorage.getItem('sf_api_key')"), '主 API Key 不应继续从 localStorage 读取');
+  assert(!html.includes("localStorage.setItem('sf_api_key'"), '主 API Key 不应继续写入 localStorage');
+  assert(html.includes('chatStreamRequest'), '主聊天请求应通过 extension host 代理');
+  assert(html.includes('chatCompletionRequest'), '非流式主模型请求应通过 extension host 代理');
+  assert(!html.includes('const res = await fetch(apiURL'), '主聊天不应继续直接在 webview 中 fetch');
+}
+
+function assertPromptUsesSearchToolsDirectly() {
+  const html = fs.readFileSync(path.join(workspaceRoot, 'media', 'webview.html'), 'utf8');
+  assert(html.includes('优先直接调用 web_search'), '提示词应明确要求模型优先直接搜索');
+  assert(html.includes('不要擅自改写成 2023、2024 等具体年份'), '提示词应禁止把今天/最新擅自改成具体年份');
+  assert(!html.includes('必须明确告知用户："我没有 [X] 的可靠信息，请用 /百度 [关键词] 搜索后再问我"'), '提示词不应再要求把搜索工作推给用户');
 }
 
 function createMockVscode() {
@@ -134,7 +156,10 @@ function createMockVscode() {
       activeTextEditor: null,
       showErrorMessage() {},
       showInformationMessage() {},
-      showWarningMessage() {},
+      async showWarningMessage(message, options, ...items) {
+        vscode.__warningMessages.push({ message, options, items });
+        return typeof vscode.__warningResponse === 'undefined' ? items[0] : vscode.__warningResponse;
+      },
       onDidChangeActiveTextEditor(listener) {
         windowEvents.activeEditor.on('event', listener);
         return { dispose() { windowEvents.activeEditor.off('event', listener); } };
@@ -219,7 +244,9 @@ function createMockVscode() {
         taskEvents.endTask.on('event', listener);
         return { dispose() { taskEvents.endTask.off('event', listener); } };
       }
-    }
+    },
+    __warningMessages: [],
+    __warningResponse: undefined
   };
 
   return vscode;
@@ -241,8 +268,23 @@ async function run() {
   assertWebviewScriptsParse();
   assertWebviewToolBlockCompatibility();
   assertWebviewContinuationGuard();
+  assertWebviewApiKeyPersistenceRemoved();
+  assertPromptUsesSearchToolsDirectly();
 
-  const context = { subscriptions: [], globalState: { update() {}, get(_key, fallback) { return fallback; } } };
+  const globalStateStore = new Map([['sf_api_key', 'legacy-secret-key']]);
+  const secretStore = new Map();
+  const context = {
+    subscriptions: [],
+    globalState: {
+      async update(key, value) { globalStateStore.set(key, value); },
+      get(key, fallback) { return globalStateStore.has(key) ? globalStateStore.get(key) : fallback; }
+    },
+    secrets: {
+      async get(key) { return secretStore.get(key) || ''; },
+      async store(key, value) { secretStore.set(key, value); },
+      async delete(key) { secretStore.delete(key); }
+    }
+  };
   const provider = new __test__.ChatViewProvider({ fsPath: workspaceRoot }, context);
   const tempDir = path.join(workspaceRoot, '.tmp-selftest');
   const tempFile = '.tmp-selftest/agent-tools.js';
@@ -261,6 +303,39 @@ async function run() {
 
   const fileContent = await provider._readWorkspaceFile('package.json', 1, 20);
   assert(fileContent.content.includes('claude-chat'), '应该能读取 package.json 内容');
+
+  const migratedApiKey = await provider._getStoredApiKey();
+  assert.strictEqual(migratedApiKey, 'legacy-secret-key', '应能从旧 globalState 迁移 API Key');
+  assert.strictEqual(secretStore.get('sf_api_key'), 'legacy-secret-key', '迁移后 API Key 应写入 SecretStorage');
+
+  const hostedChatRequest = provider._buildHostedChatRequest({
+    providerId: 'deepseek',
+    baseURL: 'https://example.com/api',
+    model: 'deepseek-chat',
+    messages: [{ role: 'user', content: 'hello' }],
+    temperature: 0.2,
+    maxTokens: 32
+  }, 'fresh-secret-key', true);
+  assert.strictEqual(hostedChatRequest.url, 'https://example.com/api/chat/completions', '应优先使用传入的 baseURL 构建主聊天请求');
+  assert(hostedChatRequest.headers.Authorization.includes('fresh-secret-key'), '主聊天请求应由后端附加 API Key');
+
+  await provider._saveStoredApiKey('fresh-secret-key');
+  assert.strictEqual(secretStore.get('sf_api_key'), 'fresh-secret-key', '保存 API Key 时应写入 SecretStorage');
+  assert.strictEqual(provider._maskSecretValue('fresh-secret-key'), 'fres...-key', '应返回掩码后的 API Key');
+
+  const commandConfirmation = provider._buildHighRiskToolConfirmation('run_command', { command: 'node', args: ['check_syntax.js'] });
+  assert(commandConfirmation, 'run_command 应触发高风险确认');
+  mockVscode.__warningResponse = commandConfirmation.confirmLabel;
+  assert.strictEqual(await provider._confirmHighRiskToolExecution(commandConfirmation), true, '确认后应允许执行高风险工具');
+  mockVscode.__warningResponse = '取消';
+  assert.strictEqual(await provider._confirmHighRiskToolExecution(commandConfirmation), false, '取消后应阻止高风险工具');
+  mockVscode.__warningResponse = undefined;
+
+  const localPatchConfirmation = provider._buildHighRiskToolConfirmation('apply_local_patch', {
+    rootPath: 'D:/demo',
+    changes: [{ action: 'replace', filePath: 'config.json', search: 'old', replace: 'new' }]
+  });
+  assert(localPatchConfirmation, 'apply_local_patch 应触发工作区外目录修改确认');
 
   const commands = await provider._listWorkspaceCommands();
   assert(Array.isArray(commands.suggestedCommands), 'list_commands 应返回 suggestedCommands');
